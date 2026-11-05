@@ -212,13 +212,36 @@ function renderLogin(msg){
    ${recovery?'':`<div class="field"><label for="em">E-mail</label><input id="em" type="email" autocomplete="username" required></div>`}
    <div class="field"><label for="pw">Mot de passe</label><input id="pw" type="password" autocomplete="${recovery?'new-password':'current-password'}" minlength="6" required></div>
    <button class="btn" type="submit">${recovery?'Enregistrer':'Se connecter'}</button>
-   ${recovery?'':'<button class="btn ghost" type="button" id="forgot">Mot de passe oublié</button>'}
-  </form></div>`;
+  </form>
+  ${recovery?'':'<button class="btn ghost" type="button" id="inscr">Première connexion ou mot de passe oublié</button>'}</div>`;
  document.getElementById('f').onsubmit=async e=>{e.preventDefault();const pw=document.getElementById('pw').value;
   if(recovery){const {error}=await sb.auth.updateUser({password:pw});if(error)return renderLogin(error.message);S.recovery=false;history.replaceState(null,'',location.pathname);return boot()}
   const {error}=await sb.auth.signInWithPassword({email:document.getElementById('em').value.trim(),password:pw});if(error)return renderLogin('Identifiants incorrects.');boot()};
- const fg=document.getElementById('forgot');if(fg)fg.onclick=async()=>{const em=document.getElementById('em').value.trim();if(!em)return renderLogin('Saisissez votre e-mail puis touchez « Mot de passe oublié ».');
-  await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});renderLogin('Si ce compte existe, un e-mail de réinitialisation vient d’être envoyé.')};
+ const ins=document.getElementById('inscr');if(ins)ins.onclick=()=>renderInscription();
+}
+function renderInscription(msg){
+ $app.innerHTML=`<div class="login">
+  <div class="kicker" style="color:var(--blue)">TOAC · École de natation</div>
+  <div class="h1">Créer mon accès</div>
+  <p class="muted" style="margin:0">Première connexion ou mot de passe oublié : saisissez votre e-mail, le code du club donné par le responsable, puis choisissez votre mot de passe.</p>
+  ${msg?`<div class="banner">${esc(msg)}</div>`:''}
+  <form id="fi" class="card">
+   <div class="field"><label for="ie">E-mail</label><input id="ie" type="email" autocomplete="username" required></div>
+   <div class="field"><label for="ic">Code du club</label><input id="ic" type="text" autocomplete="off" autocapitalize="off" required></div>
+   <div class="field"><label for="ip1">Mon mot de passe (6 caractères minimum)</label><input id="ip1" type="password" autocomplete="new-password" minlength="6" required></div>
+   <div class="field"><label for="ip2">Confirmer le mot de passe</label><input id="ip2" type="password" autocomplete="new-password" minlength="6" required></div>
+   <button class="btn" type="submit" id="isub">Valider</button>
+  </form>
+  <button class="btn ghost" type="button" id="retour">Retour à la connexion</button></div>`;
+ document.getElementById('retour').onclick=()=>renderLogin();
+ document.getElementById('fi').onsubmit=async e=>{e.preventDefault();
+  const email=document.getElementById('ie').value.trim(),code=document.getElementById('ic').value.trim(),a=document.getElementById('ip1').value,b=document.getElementById('ip2').value;
+  if(a!==b)return renderInscription('Les deux mots de passe sont différents.');
+  const bt=document.getElementById('isub');bt.disabled=true;bt.textContent='Patientez…';
+  const {data,error}=await sb.functions.invoke('inscription',{body:{email,code,password:a}});
+  if(error||data?.error){let m=data?.error;try{m=m||(await error.context.json()).error}catch(_){}return renderInscription(m||'Impossible de créer l’accès. Vérifiez votre connexion.')}
+  const r=await sb.auth.signInWithPassword({email,password:a});if(r.error)return renderLogin('Accès créé. Connectez-vous avec votre nouveau mot de passe.');
+  toast(data.action==='compte_cree'?'Compte créé, bienvenue !':'Mot de passe modifié');boot()};
 }
 function renderNoAccess(){$app.innerHTML=`<div class="login"><div class="h1">Accès non activé</div><p class="muted">Votre compte n’est pas encore enregistré comme éducateur. Contactez le responsable de l’école de natation.</p><button class="btn ghost" id="lo">Se déconnecter</button></div>`;document.getElementById('lo').onclick=logout}
 async function logout(){await sb.auth.signOut();S.user=null;S.me=null;S.data=null;render()}
@@ -373,8 +396,11 @@ async function openComptes(){
  const {data:prevus,error}=await sb.from('educateurs_prevus').select('*').order('nom');if(error)return toast(error.message);
  const actifs=new Set();const {data:eds}=await sb.from('educateurs').select('id,nom');
  const list=prevus.map(p=>({...p,actif:(eds||[]).some(e=>e.nom===p.nom)}));
+ const {data:codeOk}=await sb.rpc('code_inscription_defini');
  sheet(`<h3>Comptes des éducateurs</h3>
- <p class="muted">Pour créer un compte ou dépanner un mot de passe perdu : choisissez un mot de passe provisoire, transmettez-le à l’éducateur, qui le changera ensuite dans « Mon compte ».</p>
+ <div class="card" style="margin:8px 0"><b>Code d’inscription du club</b><span class="muted">${codeOk?'Un code est défini. Les éducateurs de la liste peuvent créer leur accès ou changer un mot de passe oublié depuis l’écran de connexion.':'Aucun code défini : l’inscription par les éducateurs est fermée.'}</span>
+  <form id="codef" class="row"><input id="codev" placeholder="${codeOk?'Nouveau code':'Choisir un code'}" autocomplete="off" minlength="6" required aria-label="Code d’inscription du club" style="flex:1;min-width:0;height:40px;border:1px solid #C9D3DD;border-radius:10px;padding:0 10px"><button class="btn sm" type="submit">${codeOk?'Changer':'Définir'}</button></form></div>
+ <p class="muted">Avec le code du club, chaque éducateur crée lui-même son accès. Vous pouvez aussi créer un compte ou dépanner un mot de passe ici avec un mot de passe provisoire.</p>
  ${list.map((p,i)=>`<div class="card" style="margin:8px 0"><div class="row between"><b>${esc(p.nom)}</b><span class="tag ${p.actif?'':'g'}">${p.actif?'Compte actif':'Pas encore de compte'}</span></div><span class="muted">${esc(p.email)}</span>
   <div class="row"><input data-pw="${i}" value="${mdpProvisoire()}" aria-label="Mot de passe provisoire pour ${esc(p.nom)}" style="flex:1;min-width:0;height:40px;border:1px solid #C9D3DD;border-radius:10px;padding:0 10px">
   <button class="btn sm" data-set="${i}">${p.actif?'Réinitialiser':'Créer le compte'}</button></div></div>`).join('')}
@@ -387,6 +413,8 @@ async function openComptes(){
    if(error||data?.error){let m=data?.error;try{m=m||(await error.context.json()).error}catch(_){}return toast('Erreur : '+(m||error.message))}
    try{await navigator.clipboard.writeText(pw)}catch(_){}
    toast((data.action==='compte_cree'?'Compte créé':'Mot de passe réinitialisé')+' — mot de passe copié');bg.remove();openComptes()});
+  bg.querySelector('#codef').onsubmit=async e=>{e.preventDefault();const v=bg.querySelector('#codev').value.trim();const {error}=await sb.rpc('definir_code_inscription',{code:v});if(error)return toast(error.message);
+   try{await navigator.clipboard.writeText(v)}catch(_){}toast('Code enregistré et copié');bg.remove();openComptes()};
   bg.querySelector('#addedu').onsubmit=async e=>{e.preventDefault();const nom=bg.querySelector('#an').value.trim(),email=bg.querySelector('#ae').value.trim().toLowerCase();
    const {error}=await sb.from('educateurs_prevus').insert({nom,email});if(error)return toast(error.message);toast('Éducateur ajouté');bg.remove();openComptes()};
  })}
