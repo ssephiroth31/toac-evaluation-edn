@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F2A44">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Évaluations École de natation TOAC</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<style>
+:root{--navy:#0F2A44;--navy2:#1C4266;--blue:#0A66B2;--blue-l:#E3EEF8;--blue-d:#0A4F8A;--bg:#F3F6F9;--card:#fff;--ink:#0F1E2E;--mute:#4E5C6B;--line:#DDE4EB;--grey:#E6E9ED;--grey-d:#3D4854;--orange:#9A3412;--orange-l:#FCE9DC;--green:#1D6F42}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Manrope,system-ui,sans-serif;font-size:15px}
+button{font-family:inherit;font-size:inherit;color:inherit;cursor:pointer}
+input,select{font-family:inherit;font-size:16px}
+#app{max-width:640px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+header.top{background:var(--navy);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 16px 14px;position:sticky;top:0;z-index:5}
+.row{display:flex;align-items:center;gap:8px}
+.between{justify-content:space-between}
+.kicker{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#A9C4DE}
+.h1{font-size:22px;font-weight:800}
+.sub{font-size:13px;color:#C6D8EA}
+.pill{font-size:12px;font-weight:700;padding:6px 10px;border-radius:999px;white-space:nowrap}
+.sync{background:var(--navy2);color:#D7E6F4}
+.iconbtn{width:44px;height:44px;border:0;background:transparent;color:inherit;display:flex;align-items:center;justify-content:center;border-radius:10px;flex:none}
+.days{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:12px}
+.day{height:54px;border:0;border-radius:10px;background:var(--navy2);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.day small{font-size:11px;font-weight:600;opacity:.85}.day b{font-size:17px}
+.day.on{background:#fff;color:var(--navy)}
+.day.today:not(.on){outline:2px solid #6FA3D6}
+main{flex:1;padding:14px 16px 100px;display:flex;flex-direction:column;gap:8px}
+.slot{background:var(--card);border-radius:14px;padding:14px;display:flex;gap:14px;align-items:center;box-shadow:0 1px 2px rgba(15,30,46,.08);border:0;text-align:left;width:100%}
+.slot .t{display:flex;flex-direction:column;align-items:center;min-width:52px}
+.slot .t b{font-size:17px}.slot .t span{font-size:12px;color:var(--mute)}
+.bar{width:4px;align-self:stretch;border-radius:4px}
+.muted{color:var(--mute);font-size:13px}
+.empty{padding:40px 10px;text-align:center;color:var(--mute)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--navy2);padding:4px;border-radius:12px;margin-top:12px}
+.seg button{height:40px;border:0;border-radius:9px;background:transparent;color:#fff;font-weight:700}
+.seg button.on{background:#fff;color:var(--navy);font-weight:800}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;height:40px;padding:0 14px;border-radius:999px;font-weight:800;border:1px solid #D3DBE3;background:#fff;color:var(--ink)}
+.chip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.chip.sm{height:34px;font-size:13px;padding:0 12px}
+.kid{width:100%;min-height:56px;border:0;border-radius:12px;padding:8px 10px 8px 12px;display:flex;align-items:center;gap:12px;background:#fff;box-shadow:0 1px 2px rgba(15,30,46,.08);text-align:left}
+.kid.abs{background:var(--grey);box-shadow:none}
+.kid .name{font-size:15px;font-weight:700}
+.kid.abs .name{color:var(--grey-d)}
+.kid .meta{font-size:12px;color:var(--mute)}
+.av{width:36px;height:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;background:var(--blue-l);color:var(--blue-d);flex:none}
+.abs .av{background:#C9D0D8;color:var(--grey-d)}
+.box{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:none;border:2px solid #9AA7B4;background:#fff}
+.box.on{background:var(--blue);border-color:var(--blue)}
+.box.lock{background:#C9D0D8;border-color:#C9D0D8}
+.tag{font-size:11px;font-weight:800;padding:3px 7px;border-radius:6px;background:var(--blue-l);color:var(--blue-d)}
+.tag.g{background:#EEF1F4;color:var(--grey-d)}
+.more{width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--mute);flex:none;display:flex;align-items:center;justify-content:center}
+.card{background:#fff;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 2px rgba(15,30,46,.08)}
+.uc-k{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue)}
+.uc-t{font-size:16px;font-weight:800}
+.uc-c{font-size:13px;line-height:1.45;color:var(--grey-d)}
+.prog{height:6px;background:var(--grey);border-radius:6px;overflow:hidden;margin-top:4px}.prog i{display:block;height:6px;background:var(--blue)}
+.btn{height:48px;border:0;border-radius:14px;background:var(--blue);color:#fff;font-weight:800;padding:0 18px}
+.btn.sec{background:var(--blue-l);color:var(--blue-d)}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid #D3DBE3}
+.btn.warn{background:var(--orange-l);color:var(--orange)}
+.btn.sm{height:36px;border-radius:999px;font-size:13px;padding:0 12px}
+.ouinon{display:flex;gap:6px}
+.ouinon button{height:38px;min-width:58px;border-radius:10px;border:1px solid #D3DBE3;background:#fff;font-weight:800}
+.ouinon .oui.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.ouinon .non.on{background:var(--grey-d);color:#fff;border-color:var(--grey-d)}
+nav.bottom{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px 8px calc(8px + env(safe-area-inset-bottom));z-index:6}
+nav.bottom .in{max-width:640px;width:100%;display:grid;grid-template-columns:repeat(3,1fr)}
+nav.bottom button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;font-size:12px;font-weight:700;color:var(--mute)}
+nav.bottom button.on{color:var(--blue)}
+.sheet-bg{position:fixed;inset:0;background:rgba(15,30,46,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:#fff;width:100%;max-width:640px;max-height:88vh;overflow:auto;border-radius:18px 18px 0 0;padding:10px 16px calc(20px + env(safe-area-inset-bottom))}
+.grab{width:40px;height:5px;border-radius:5px;background:#D3DBE3;margin:4px auto 12px}
+.sheet h3{margin:6px 0 2px;font-size:19px}
+.sheet h4{margin:14px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.ucl{display:flex;flex-wrap:wrap;gap:6px}
+.ucb{font-size:12px;font-weight:700;padding:5px 8px;border-radius:8px;background:#EEF1F4;color:var(--grey-d)}
+.ucb.ok{background:var(--blue);color:#fff}
+.field{display:flex;flex-direction:column;gap:4px;margin:8px 0}
+.field label{font-size:13px;font-weight:700;color:var(--mute)}
+.field input,.field select{height:46px;border:1px solid #C9D3DD;border-radius:12px;padding:0 12px;background:#fff}
+.login{flex:1;display:flex;flex-direction:column;justify-content:center;padding:24px;gap:12px}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;font-weight:600;z-index:30;max-width:90%;text-align:center}
+.banner{background:var(--orange-l);color:var(--orange);font-size:13px;font-weight:700;padding:10px 12px;border-radius:12px}
+table.rec{border-collapse:collapse;font-size:13px;width:100%}
+table.rec td,table.rec th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
+.spin{width:28px;height:28px;border:3px solid var(--blue-l);border-top-color:var(--blue);border-radius:50%;animation:s 1s linear infinite;margin:40px auto}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app"><div class="spin" aria-label="Chargement"></div></div>
+<script>
+'use strict';
+const SB_URL='https://vijexmmydvgfpkyzkgls.supabase.co';
+const SB_KEY='sb_publishable_OUT3KLLk0Dtp99jRvyh6uA_vXy9gNLH';
+const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const JOURS=['','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+const JC=['','LUN','MAR','MER','JEU','VEN','SAM'];
+const COLORS={crevette:'#E07A3F',tetards:'#2F9E8F',grenouilles:'#4C9A2A',tritons:'#0A66B2',hippocampes:'#0E7C86',dauphins:'#5B4FC4',salamandre:'#C28A00',dragons:'#B23A48'};
+const I={
+ back:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>',
+ prev:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>',
+ next:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>',
+ check:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ lock:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3D4854" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>',
+ dots:'<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+ cal:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+ users:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c1.8.7 3 2.5 3.5 5.2"/></svg>',
+ dl:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>'
+};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $app=document.getElementById('app');
+const LS={get(k,d){try{const v=localStorage.getItem('edn_'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('edn_'+k,JSON.stringify(v))}catch(e){}}};
+
+// ---------- état ----------
+const S={user:null,me:null,data:null,view:'planning',week:0,day:null,slot:null,tab:'appel',ucId:null,tri:null,sg:'all',queue:LS.get('queue',[]),online:navigator.onLine,search:'',groupNiv:'grenouilles'};
+const D=()=>S.data;
+const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const isoOf=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function monday(off){const d=new Date();const wd=(d.getDay()+6)%7;d.setHours(12,0,0,0);d.setDate(d.getDate()-wd+off*7);return d}
+function triDefault(dateISO){const tr=(D()?.trimestres)||[];const dt=dateISO||todayISO();
+ for(const t of tr){if(t.debut&&t.fin&&dt>=t.debut&&dt<=t.fin)return t.numero}
+ const m=+dt.slice(5,7);return (m>=9&&m<=12)?1:(m>=1&&m<=3)?2:3}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+
+// ---------- chargement ----------
+async function fetchAll(table,select='*',filter){let out=[],from=0;const step=1000;
+ for(;;){let q=sb.from(table).select(select).range(from,from+step-1);if(filter)q=filter(q);const {data,error}=await q;if(error)throw error;out=out.concat(data);if(data.length<step)break;from+=step}return out}
+async function loadAll(){
+ const [niveaux,uc,creneaux,enfants,inscriptions,educateurs,trimestres,validations,appel]=await Promise.all([
+  fetchAll('niveaux'),fetchAll('uc','*',q=>q.eq('actif',true).order('niveau_id').order('trimestre',{nullsFirst:true}).order('ordre')),
+  fetchAll('creneaux','*',q=>q.eq('actif',true).order('jour').order('heure_debut')),
+  fetchAll('enfants','*',q=>q.order('nom').order('prenom')),fetchAll('inscriptions'),fetchAll('educateurs'),
+  fetchAll('trimestres','*,saisons!inner(active)',q=>q.eq('saisons.active',true).order('numero')),
+  fetchAll('validations'),fetchAll('appel_du_jour','*',q=>q.eq('date',todayISO()))]);
+ const d={niveaux,uc,creneaux,enfants,inscriptions,educateurs,trimestres,validations,appel};
+ index(d);S.data=d;LS.set('cache',{niveaux,uc,creneaux,enfants,inscriptions,educateurs,trimestres,validations,at:Date.now()});
+}
+function index(d){
+ d.niv=Object.fromEntries(d.niveaux.map(n=>[n.id,n]));
+ d.kid=Object.fromEntries(d.enfants.map(e=>[e.id,e]));
+ d.ucById=Object.fromEntries(d.uc.map(u=>[u.id,u]));
+ d.edu=Object.fromEntries(d.educateurs.map(e=>[e.id,e]));
+ d.val={};for(const v of d.validations)d.val[v.enfant_id+'|'+v.uc_id]=v;
+ d.abs=new Set((d.appel||[]).filter(a=>a.absent&&a.date===todayISO()).map(a=>a.creneau_id+'|'+a.enfant_id));
+ d.insBySlot={};d.insByKid={};for(const i of d.inscriptions){(d.insBySlot[i.creneau_id]??=[]).push(i);(d.insByKid[i.enfant_id]??=[]).push(i)}
+ d.slotById=Object.fromEntries(d.creneaux.map(c=>[c.id,c]));
+}
+function applyQueueLocally(){for(const op of S.queue)applyLocal(op)}
+function applyLocal(op){const d=D();if(!d)return;
+ if(op.t==='val'){const k=op.p.enfant_id+'|'+op.p.uc_id;d.val[k]={...(d.val[k]||{}),...op.p,updated_by:S.user?.id,updated_at:new Date().toISOString()}}
+ if(op.t==='abs'){const k=op.p.creneau_id+'|'+op.p.enfant_id;op.p.absent?d.abs.add(k):d.abs.delete(k)}
+}
+
+// ---------- file d'attente hors ligne ----------
+function enqueue(op){applyLocal(op);S.queue.push(op);LS.set('queue',S.queue);flush();renderSync()}
+let flushing=false;
+async function flush(){if(flushing||!S.queue.length||!navigator.onLine)return;flushing=true;
+ try{while(S.queue.length){const op=S.queue[0];let r;
+  if(op.t==='val')r=await sb.from('validations').upsert(op.p,{onConflict:'enfant_id,uc_id'});
+  else if(op.t==='abs')r=op.p.absent?await sb.from('appel_du_jour').upsert({creneau_id:op.p.creneau_id,enfant_id:op.p.enfant_id,date:op.p.date,absent:true}):await sb.from('appel_du_jour').delete().match({creneau_id:op.p.creneau_id,enfant_id:op.p.enfant_id,date:op.p.date});
+  else if(op.t==='upd')r=await sb.from(op.table).update(op.p).match(op.m);
+  if(r&&r.error){if(/clôturé/.test(r.error.message)){toast(r.error.message);S.queue.shift();continue}
+   if(r.error.code&&r.error.code!=='PGRST301'&&!/fetch|network/i.test(r.error.message)){console.warn(r.error);toast('Erreur : '+r.error.message);S.queue.shift();continue}break}
+  S.queue.shift();LS.set('queue',S.queue)}
+ }catch(e){console.warn(e)}finally{flushing=false;renderSync()}}
+window.addEventListener('online',()=>{S.online=true;flush();renderSync()});
+window.addEventListener('offline',()=>{S.online=false;renderSync()});
+setInterval(flush,15000);
+function syncLabel(){if(S.queue.length)return '⏳ '+S.queue.length+' en attente';return S.online?'✓ synchronisé':'Hors ligne'}
+function renderSync(){document.querySelectorAll('[data-sync]').forEach(e=>e.textContent=syncLabel())}
+
+// ---------- temps réel ----------
+function realtime(){sb.channel('edn').on('postgres_changes',{event:'*',schema:'public',table:'appel_du_jour'},p=>{const r=p.new&&p.new.creneau_id?p.new:p.old;const k=r.creneau_id+'|'+r.enfant_id;
+  if(p.eventType==='DELETE'||!p.new.absent)D().abs.delete(k);else if(p.new.date===todayISO())D().abs.add(k);if(S.view==='seance')render()})
+ .on('postgres_changes',{event:'*',schema:'public',table:'validations'},p=>{if(p.eventType==='DELETE'){delete D().val[p.old.enfant_id+'|'+p.old.uc_id]}else{D().val[p.new.enfant_id+'|'+p.new.uc_id]=p.new}if(S.view==='seance')render()}).subscribe()}
+
+// ---------- rendu ----------
+function render(){
+ if(!S.user)return renderLogin();
+ if(!S.me)return renderNoAccess();
+ if(!S.data){$app.innerHTML='<div class="spin"></div>';return}
+ const y=window.scrollY;
+ if(S.view==='planning')renderPlanning();else if(S.view==='seance')renderSeance();else if(S.view==='groupes')renderGroupes();else if(S.view==='export')renderExport();
+ if(S.keepScroll){window.scrollTo(0,y);S.keepScroll=false}
+}
+function nav(){return `<nav class="bottom"><div class="in">
+ <button class="${S.view==='planning'||S.view==='seance'?'on':''}" data-go="planning">${I.cal}Planning</button>
+ <button class="${S.view==='groupes'?'on':''}" data-go="groupes">${I.users}Enfants</button>
+ <button class="${S.view==='export'?'on':''}" data-go="export">${I.dl}Export</button></div></nav>`}
+
+function renderLogin(msg){
+ const recovery=S.recovery;
+ $app.innerHTML=`<div class="login">
+  <div class="kicker" style="color:var(--blue)">TOAC · École de natation</div>
+  <div class="h1">${recovery?'Choisir un mot de passe':'Connexion éducateur'}</div>
+  ${msg?`<div class="banner">${esc(msg)}</div>`:''}
+  <form id="f" class="card">
+   ${recovery?'':`<div class="field"><label for="em">E-mail</label><input id="em" type="email" autocomplete="username" required></div>`}
+   <div class="field"><label for="pw">Mot de passe</label><input id="pw" type="password" autocomplete="${recovery?'new-password':'current-password'}" minlength="6" required></div>
+   <button class="btn" type="submit">${recovery?'Enregistrer':'Se connecter'}</button>
+   ${recovery?'':'<button class="btn ghost" type="button" id="forgot">Mot de passe oublié</button>'}
+  </form></div>`;
+ document.getElementById('f').onsubmit=async e=>{e.preventDefault();const pw=document.getElementById('pw').value;
+  if(recovery){const {error}=await sb.auth.updateUser({password:pw});if(error)return renderLogin(error.message);S.recovery=false;history.replaceState(null,'',location.pathname);return boot()}
+  const {error}=await sb.auth.signInWithPassword({email:document.getElementById('em').value.trim(),password:pw});if(error)return renderLogin('Identifiants incorrects.');boot()};
+ const fg=document.getElementById('forgot');if(fg)fg.onclick=async()=>{const em=document.getElementById('em').value.trim();if(!em)return renderLogin('Saisissez votre e-mail puis touchez « Mot de passe oublié ».');
+  await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});renderLogin('Si ce compte existe, un e-mail de réinitialisation vient d’être envoyé.')};
+}
+function renderNoAccess(){$app.innerHTML=`<div class="login"><div class="h1">Accès non activé</div><p class="muted">Votre compte n’est pas encore enregistré comme éducateur. Contactez le responsable de l’école de natation.</p><button class="btn ghost" id="lo">Se déconnecter</button></div>`;document.getElementById('lo').onclick=logout}
+async function logout(){await sb.auth.signOut();S.user=null;S.me=null;S.data=null;render()}
+
+function slotsOfDay(j){return D().creneaux.filter(c=>c.jour===j)}
+function renderPlanning(){
+ const mon=monday(S.week);const days=[];for(let i=0;i<6;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);days.push(d)}
+ if(!S.day){const wd=(new Date().getDay()+6)%7+1;S.day=wd>6?6:wd}
+ const sel=days[S.day-1];const selISO=isoOf(sel);const end=days[5];
+ const fmt=d=>d.getDate()+' '+d.toLocaleDateString('fr-FR',{month:'short'});
+ const slots=slotsOfDay(S.day);
+ $app.innerHTML=`<header class="top"><div class="row between"><div><div class="kicker">TOAC · École de natation</div><div class="h1">Planning</div></div><span class="pill sync" data-sync>${syncLabel()}</span></div>
+  <div class="row between" style="margin-top:6px"><button class="iconbtn" data-wk="-1" aria-label="Semaine précédente">${I.prev}</button><b>Semaine du ${fmt(days[0])} au ${fmt(end)}</b><button class="iconbtn" data-wk="1" aria-label="Semaine suivante">${I.next}</button></div>
+  <div class="days">${days.map((d,i)=>`<button class="day ${S.day===i+1?'on':''} ${isoOf(d)===todayISO()?'today':''}" data-day="${i+1}"><small>${JC[i+1]}</small><b>${d.getDate()}</b></button>`).join('')}</div></header>
+  <main><div class="row between"><b style="font-size:17px">${sel.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</b><span class="muted">Trimestre ${triDefault(selISO)}</span></div>
+  ${slots.length?slots.map(c=>{const n=(D().insBySlot[c.id]||[]).length;return `<button class="slot" data-slot="${c.id}" data-date="${selISO}">
+   <div class="t"><b>${c.heure_debut.slice(0,5)}</b><span>${c.heure_fin.slice(0,5)}</span></div><div class="bar" style="background:${COLORS[c.niveau_id]}"></div>
+   <div style="flex:1"><div style="font-size:16px;font-weight:800">${esc(D().niv[c.niveau_id].nom)}</div><div class="muted">${esc(c.lieu||'')} · ${n} enfants</div></div></button>`}).join(''):'<div class="empty">Aucun créneau ce jour-là.</div>'}
+  ${S.me.role==='admin'?`<button class="btn ghost" id="reglages" style="margin-top:16px">Réglages des trimestres</button>`:''}
+  <button class="btn ghost" id="lo" style="margin-top:4px">Se déconnecter (${esc(S.me.nom)})</button></main>${nav()}`;
+ bindCommon();
+ $app.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{S.week+=+b.dataset.wk;render()});
+ $app.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{S.day=+b.dataset.day;render()});
+ $app.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>openSeance(+b.dataset.slot,b.dataset.date));
+ document.getElementById('lo').onclick=logout;
+ const rg=document.getElementById('reglages');if(rg)rg.onclick=openReglages;
+}
+function openSeance(id,dateISO){S.slot=id;S.date=dateISO;S.view='seance';S.tab='appel';S.sg='all';S.tri=triDefault(dateISO);S.ucId=null;
+ if(dateISO!==todayISO())S.tab='eval';window.scrollTo(0,0);render()}
+
+function kidsOfSlot(c){const ins=D().insBySlot[c.id]||[];return ins.map(i=>({...D().kid[i.enfant_id],sg:i.sous_groupe})).filter(k=>k.id&&k.actif).sort((a,b)=>(a.nom+a.prenom).localeCompare(b.nom+b.prenom,'fr'))}
+function ucsFor(niv,tri){const n=D().niv[niv];return D().uc.filter(u=>u.niveau_id===niv&&(n.mode==='trimestres'?u.trimestre===tri:true)).sort((a,b)=>a.ordre-b.ordre)}
+function triClosed(t){const tr=D().trimestres.find(x=>x.numero===t);return !!(tr&&tr.cloture)}
+function isAbs(c,k){return S.date===todayISO()&&D().abs.has(c.id+'|'+k.id)}
+function valInfo(v){if(!v)return '';const who=D().edu[v.updated_by];const d=v.updated_at?new Date(v.updated_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}):'';return (v.acquis?'Validé':'Retiré')+(d?' le '+d:'')+(who?' par '+who.nom.split(' ')[0]:'')}
+
+function renderSeance(){
+ const c=D().slotById[S.slot];const niv=D().niv[c.niveau_id];let kids=kidsOfSlot(c);
+ const sgs=[...new Set(kids.map(k=>k.sg).filter(Boolean))].sort();
+ if(S.sg!=='all')kids=kids.filter(k=>k.sg===S.sg);
+ const absN=kids.filter(k=>isAbs(c,k)).length;const isToday=S.date===todayISO();
+ const dlabel=new Date(S.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+ let body='';
+ if(S.tab==='appel'){
+  body=`<div class="row between"><div class="row"><span class="pill" style="background:var(--blue-l);color:var(--blue-d)">${kids.length-absN} présents</span><span class="pill" style="background:var(--grey);color:var(--grey-d)">${absN} absents</span></div><span class="muted">Partagé en direct</span></div>
+  ${isToday?'<p class="muted" style="margin:2px 0 4px">Tout le monde est présent par défaut. Touchez un enfant pour le marquer absent.</p>':'<div class="banner">L’appel ne se fait que le jour même. Vous pouvez évaluer sans appel.</div>'}
+  ${kids.map(k=>{const a=isAbs(c,k);return `<div class="row"><button class="kid ${a?'abs':''}" data-abs="${k.id}" ${isToday?'':'disabled'}><span class="av">${esc(k.prenom[0]+k.nom[0])}</span><span style="flex:1"><span class="name" style="${a?'text-decoration:line-through':''}">${esc(k.prenom)} ${esc(k.nom)}</span><br><span class="meta">${k.sg?k.sg+' · ':''}${a?'Absent — évaluation verrouillée':'Présent'}</span></span><span class="tag ${a?'g':''}">${a?'Absent':'Présent'}</span></button><button class="more" data-kid="${k.id}" aria-label="Fiche de ${esc(k.prenom)}">${I.dots}</button></div>`}).join('')}
+  <button class="btn" data-tab="eval" style="margin-top:8px">Passer à l’évaluation →</button>`;
+ }else{
+  const ucs=ucsFor(c.niveau_id,S.tri);if(!S.ucId||!ucs.find(u=>u.id===S.ucId))S.ucId=ucs[0]?.id;const u=D().ucById[S.ucId];
+  const closed=niv.mode==='trimestres'&&triClosed(S.tri);
+  const present=kids.filter(k=>!isAbs(c,k));const ok=present.filter(k=>D().val[k.id+'|'+S.ucId]?.acquis).length;
+  const triChips=niv.mode==='trimestres'?`<div class="chips">${[1,2,3].map(t=>`<button class="chip sm ${S.tri===t?'on':''}" data-tri="${t}">T${t}${triClosed(t)?' 🔒':''}</button>`).join('')}</div>`:'';
+  body=`${triChips}<div class="chips">${ucs.map(x=>`<button class="chip ${x.id===S.ucId?'on':''}" data-uc="${x.id}">${esc(x.code)}</button>`).join('')}</div>
+  ${u?`<section class="card"><div class="row between"><span class="uc-k">${esc(u.code)} · ${esc(u.theme||'')}</span><b>${ok} / ${present.length}</b></div>
+   ${u.generalite?`<span class="uc-t">${esc(u.generalite)}</span>`:''}<span class="uc-c"><b>Critère :</b> ${esc(u.critere||'')}</span>
+   ${u.explication?`<details><summary class="muted">Explication</summary><span class="uc-c">${esc(u.explication)}</span></details>`:''}
+   ${u.source?`<span class="muted">Repris de : ${esc(u.source)}</span>`:''}
+   <div class="prog"><i style="width:${present.length?Math.round(ok/present.length*100):0}%"></i></div></section>`:'<div class="empty">Aucune UC pour ce niveau.</div>'}
+  ${closed?'<div class="banner">Trimestre clôturé : modification impossible. Un administrateur peut le rouvrir dans les réglages.</div>':''}
+  ${u&&!closed&&niv.mode!=='oui_non'?`<div class="row between"><span class="muted">Touchez pour valider / retirer</span><button class="btn sec sm" id="all">Tout cocher</button></div>`:''}
+  ${u?kids.map(k=>{const a=isAbs(c,k);const v=D().val[k.id+'|'+S.ucId];const on=!!v?.acquis;
+   if(niv.mode==='oui_non')return `<div class="kid ${a?'abs':''}"><span style="flex:1"><span class="name">${esc(k.prenom)} ${esc(k.nom)}</span><br><span class="meta">${a?'Absent':esc(valInfo(v))||'Non évalué'}</span></span>
+    <div class="ouinon"><button class="oui ${v&&v.acquis?'on':''}" data-yn="${k.id}" data-v="1" ${a||closed?'disabled':''}>OUI</button><button class="non ${v&&!v.acquis?'on':''}" data-yn="${k.id}" data-v="0" ${a||closed?'disabled':''}>NON</button></div><button class="more" data-kid="${k.id}" aria-label="Fiche">${I.dots}</button></div>`;
+   return `<div class="row"><button class="kid ${a?'abs':''}" data-val="${k.id}" ${a||closed?'disabled':''}><span class="box ${on?'on':''} ${a?'lock':''}">${on?I.check:a?I.lock:''}</span><span style="flex:1"><span class="name">${esc(k.prenom)} ${esc(k.nom)}</span><br><span class="meta">${k.sg?k.sg+' · ':''}${a?'Absent — verrouillé':esc(valInfo(v))||'Non acquis'}</span></span></button><button class="more" data-kid="${k.id}" aria-label="Fiche de ${esc(k.prenom)}">${I.dots}</button></div>`}).join(''):''}`;
+ }
+ $app.innerHTML=`<header class="top"><div class="row"><button class="iconbtn" id="bk" aria-label="Retour au planning">${I.back}</button>
+  <div style="flex:1"><div class="h1" style="font-size:20px">${esc(niv.nom)}</div><div class="sub">${esc(dlabel)} · ${c.heure_debut.slice(0,5)} · ${niv.mode==='trimestres'?'Trimestre '+S.tri:niv.mode==='oui_non'?'Savoir nager':'Fin de saison'}</div></div><span class="pill sync" data-sync>${syncLabel()}</span></div>
+  <div class="seg"><button class="${S.tab==='appel'?'on':''}" data-tab="appel">1 · Appel</button><button class="${S.tab==='eval'?'on':''}" data-tab="eval">2 · Évaluation</button></div>
+  ${sgs.length?`<div class="chips" style="margin-top:10px"><button class="chip sm ${S.sg==='all'?'on':''}" data-sg="all">Tous</button>${sgs.map(g=>`<button class="chip sm ${S.sg===g?'on':''}" data-sg="${g}">${g}</button>`).join('')}</div>`:''}</header>
+  <main>${body}</main>${nav()}`;
+ bindCommon();
+ document.getElementById('bk').onclick=()=>{S.view='planning';render()};
+ $app.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render()});
+ $app.querySelectorAll('[data-sg]').forEach(b=>b.onclick=()=>{S.sg=b.dataset.sg;render()});
+ $app.querySelectorAll('[data-tri]').forEach(b=>b.onclick=()=>{S.tri=+b.dataset.tri;S.ucId=null;render()});
+ $app.querySelectorAll('[data-uc]').forEach(b=>b.onclick=()=>{S.ucId=+b.dataset.uc;render()});
+ $app.querySelectorAll('[data-abs]').forEach(b=>b.onclick=()=>{const k=b.dataset.abs;const a=D().abs.has(c.id+'|'+k);enqueue({t:'abs',p:{creneau_id:c.id,enfant_id:k,date:todayISO(),absent:!a}});S.keepScroll=true;render()});
+ $app.querySelectorAll('[data-val]').forEach(b=>b.onclick=()=>{const k=b.dataset.val;const v=D().val[k+'|'+S.ucId];enqueue({t:'val',p:{enfant_id:k,uc_id:S.ucId,acquis:!(v&&v.acquis)}});S.keepScroll=true;render()});
+ $app.querySelectorAll('[data-yn]').forEach(b=>b.onclick=()=>{enqueue({t:'val',p:{enfant_id:b.dataset.yn,uc_id:S.ucId,acquis:b.dataset.v==='1'}});S.keepScroll=true;render()});
+ const all=document.getElementById('all');if(all)all.onclick=()=>{const todo=kids.filter(k=>!isAbs(c,k)&&!D().val[k.id+'|'+S.ucId]?.acquis);if(!todo.length)return toast('Tous les présents sont déjà validés');
+  if(!confirmBox(`Valider ${D().ucById[S.ucId].code} pour ${todo.length} enfant(s) présent(s) ?`))return;todo.forEach(k=>enqueue({t:'val',p:{enfant_id:k.id,uc_id:S.ucId,acquis:true}}));S.keepScroll=true;render()};
+}
+function confirmBox(m){return window.confirm(m)}
+function bindCommon(){$app.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{S.view=b.dataset.go;window.scrollTo(0,0);render()});
+ $app.querySelectorAll('[data-kid]').forEach(b=>b.onclick=()=>openKid(b.dataset.kid))}
+
+// ---------- fiche enfant ----------
+function sheet(html,onMount){const bg=document.createElement('div');bg.className='sheet-bg';bg.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
+ bg.onclick=e=>{if(e.target===bg)bg.remove()};document.body.appendChild(bg);onMount&&onMount(bg);return bg}
+function openKid(id){const k=D().kid[id];const n=D().niv[k.niveau_id];const ins=D().insByKid[id]||[];
+ const blocks=[];const nivs=[...new Set([k.niveau_id,...Object.values(D().val).filter(v=>v.enfant_id===id).map(v=>D().ucById[v.uc_id]?.niveau_id).filter(Boolean)])];
+ for(const nv of nivs){const N=D().niv[nv];const tris=N.mode==='trimestres'?[1,2,3]:[null];
+  for(const t of tris){const ucs=ucsFor(nv,t);if(!ucs.length)continue;const ok=ucs.filter(u=>D().val[id+'|'+u.id]?.acquis).length;
+   blocks.push(`<h4>${esc(N.nom)}${t?' · T'+t:''} — ${ok}/${ucs.length}${nv!==k.niveau_id?' (archivé)':''}</h4><div class="ucl">${ucs.map(u=>`<span class="ucb ${D().val[id+'|'+u.id]?.acquis?'ok':''}" title="${esc(u.theme||'')}">${esc(u.code)}</span>`).join('')}</div>`)}}
+ const insHtml=ins.map(i=>{const c=D().slotById[i.creneau_id];return c?`<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${JOURS[c.jour]} ${c.heure_debut.slice(0,5)}${i.sous_groupe?' · <b>'+i.sous_groupe+'</b>':''}</span>
+  ${k.niveau_id==='grenouilles'?`<select data-isg="${c.id}" aria-label="Sous-groupe du ${JOURS[c.jour]}" style="height:36px;border-radius:8px;border:1px solid #C9D3DD">${['G1','G2','G3','G4'].map(g=>`<option ${g===i.sous_groupe?'selected':''}>${g}</option>`).join('')}</select>`:''}</div>`:''}).join('');
+ const bg=sheet(`<h3>${esc(k.prenom)} ${esc(k.nom)}</h3><div class="muted">${esc(n.nom)}${k.actif?'':' · retiré'}</div>
+  <h4>Créneaux</h4>${insHtml||'<div class="muted">Aucun créneau</div>'}
+  <div class="row" style="flex-wrap:wrap;margin-top:8px"><select id="addslot" style="height:40px;border-radius:10px;border:1px solid #C9D3DD;flex:1;min-width:0"><option value="">Ajouter un créneau…</option>${D().creneaux.filter(c=>c.niveau_id===k.niveau_id&&!ins.find(i=>i.creneau_id===c.id)).map(c=>`<option value="${c.id}">${JOURS[c.jour]} ${c.heure_debut.slice(0,5)}</option>`).join('')}</select>
+  ${ins.length?`<select id="delslot" style="height:40px;border-radius:10px;border:1px solid #C9D3DD;flex:1;min-width:0"><option value="">Retirer un créneau…</option>${ins.map(i=>{const c=D().slotById[i.creneau_id];return c?`<option value="${c.id}">${JOURS[c.jour]} ${c.heure_debut.slice(0,5)}</option>`:''}).join('')}</select>`:''}</div>
+  ${blocks.join('')}
+  <h4>Changer de niveau</h4><div class="row"><select id="newniv" style="height:44px;border-radius:10px;border:1px solid #C9D3DD;flex:1">${D().niveaux.sort((a,b)=>a.ordre-b.ordre).map(x=>`<option value="${x.id}" ${x.id===k.niveau_id?'selected':''}>${esc(x.nom)}</option>`).join('')}</select><button class="btn warn sm" id="chniv">Changer</button></div>
+  <p class="muted">Les UC du niveau actuel sont conservées en archive. Pensez ensuite à l’inscrire à un créneau du nouveau niveau.</p>
+  <div class="row" style="margin-top:10px"><button class="btn ghost" id="act" style="flex:1">${k.actif?'Retirer de l’école de natation':'Réintégrer'}</button></div>`,bg=>{
+  bg.querySelectorAll('[data-isg]').forEach(s=>s.onchange=async()=>{const cid=+s.dataset.isg;const {error}=await sb.from('inscriptions').update({sous_groupe:s.value}).match({enfant_id:id,creneau_id:cid});if(error)return toast(error.message);
+   ins.find(i=>i.creneau_id===cid).sous_groupe=s.value;toast('Sous-groupe modifié');bg.remove();openKid(id);render()});
+  const add=bg.querySelector('#addslot');add.onchange=async()=>{if(!add.value)return;const cid=+add.value;const sg=k.niveau_id==='grenouilles'?'G1':null;
+   const {error}=await sb.from('inscriptions').insert({enfant_id:id,creneau_id:cid,sous_groupe:sg});if(error)return toast(error.message);
+   const row={enfant_id:id,creneau_id:cid,sous_groupe:sg};D().inscriptions.push(row);index(D());toast('Créneau ajouté');bg.remove();openKid(id);render()};
+  const del=bg.querySelector('#delslot');if(del)del.onchange=async()=>{if(!del.value)return;const cid=+del.value;if(!confirmBox('Retirer ce créneau ?'))return;
+   const {error}=await sb.from('inscriptions').delete().match({enfant_id:id,creneau_id:cid});if(error)return toast(error.message);
+   D().inscriptions=D().inscriptions.filter(i=>!(i.enfant_id===id&&i.creneau_id===cid));index(D());toast('Créneau retiré');bg.remove();openKid(id);render()};
+  bg.querySelector('#chniv').onclick=async()=>{const nv=bg.querySelector('#newniv').value;if(nv===k.niveau_id)return;
+   if(!confirmBox(`Passer ${k.prenom} en ${D().niv[nv].nom} ? Ses créneaux actuels seront retirés et ses UC ${n.nom} archivées.`))return;
+   let r=await sb.from('enfants').update({niveau_id:nv}).eq('id',id);if(r.error)return toast(r.error.message);
+   r=await sb.from('inscriptions').delete().eq('enfant_id',id);k.niveau_id=nv;D().inscriptions=D().inscriptions.filter(i=>i.enfant_id!==id);index(D());toast('Niveau modifié');bg.remove();openKid(id);render()};
+  bg.querySelector('#act').onclick=async()=>{const {error}=await sb.from('enfants').update({actif:!k.actif}).eq('id',id);if(error)return toast(error.message);k.actif=!k.actif;toast(k.actif?'Réintégré':'Retiré');bg.remove();render()};
+ })}
+
+// ---------- liste enfants ----------
+function renderGroupes(){
+ const q=S.search.toLowerCase();const niv=S.groupNiv;
+ let kids=D().enfants.filter(k=>(q?((k.prenom+' '+k.nom).toLowerCase().includes(q)):k.niveau_id===niv));
+ $app.innerHTML=`<header class="top"><div class="row between"><div class="h1">Enfants</div><span class="pill sync" data-sync>${syncLabel()}</span></div>
+  <div class="field" style="margin:10px 0 0"><input id="q" type="search" placeholder="Rechercher un enfant" value="${esc(S.search)}" aria-label="Rechercher un enfant" style="height:44px;border:0;border-radius:12px;padding:0 12px"></div>
+  ${q?'':`<div class="chips" style="margin-top:10px">${D().niveaux.sort((a,b)=>a.ordre-b.ordre).map(n=>`<button class="chip sm ${n.id===niv?'on':''}" data-niv="${n.id}">${esc(n.nom)}</button>`).join('')}</div>`}</header>
+  <main>${kids.length?kids.map(k=>{const N=D().niv[k.niveau_id];const t=N.mode==='trimestres'?triDefault():null;const ucs=ucsFor(k.niveau_id,t);const ok=ucs.filter(u=>D().val[k.id+'|'+u.id]?.acquis).length;
+   const ins=(D().insByKid[k.id]||[]).map(i=>{const c=D().slotById[i.creneau_id];return c?JC[c.jour]+(i.sous_groupe?' '+i.sous_groupe:''):''}).join(' · ');
+   return `<button class="kid ${k.actif?'':'abs'}" data-kid="${k.id}"><span class="av">${esc(k.prenom[0]+k.nom[0])}</span><span style="flex:1"><span class="name">${esc(k.prenom)} ${esc(k.nom)}</span><br><span class="meta">${q?esc(N.nom)+' · ':''}${esc(ins)}</span></span><span class="tag">${ok}/${ucs.length}${t?' T'+t:''}</span></button>`}).join(''):'<div class="empty">Aucun enfant.</div>'}</main>${nav()}`;
+ bindCommon();
+ const inp=document.getElementById('q');inp.oninput=()=>{S.search=inp.value;clearTimeout(S._t);S._t=setTimeout(()=>{render();const i=document.getElementById('q');i.focus();i.setSelectionRange(i.value.length,i.value.length)},250)};
+ $app.querySelectorAll('[data-niv]').forEach(b=>b.onclick=()=>{S.groupNiv=b.dataset.niv;render()});
+}
+
+// ---------- réglages trimestres ----------
+function openReglages(){const tr=D().trimestres;
+ sheet(`<h3>Trimestres de la saison</h3><p class="muted">Sans dates, l’app utilise : T1 septembre–décembre, T2 janvier–mars, T3 avril–août.</p>
+ ${tr.map(t=>`<div class="card" style="margin:8px 0"><b>Trimestre ${t.numero}</b><div class="row"><div class="field" style="flex:1"><label>Début</label><input type="date" data-deb="${t.id}" value="${t.debut||''}"></div><div class="field" style="flex:1"><label>Fin</label><input type="date" data-fin="${t.id}" value="${t.fin||''}"></div></div>
+  <button class="btn ${t.cloture?'sec':'warn'} sm" data-clo="${t.id}">${t.cloture?'Rouvrir le trimestre':'Clôturer le trimestre'}</button></div>`).join('')}
+ <button class="btn" id="savetr" style="width:100%">Enregistrer les dates</button>`,bg=>{
+  bg.querySelectorAll('[data-clo]').forEach(b=>b.onclick=async()=>{const t=tr.find(x=>x.id===+b.dataset.clo);const {error}=await sb.from('trimestres').update({cloture:!t.cloture}).eq('id',t.id);if(error)return toast(error.message);t.cloture=!t.cloture;toast(t.cloture?'Trimestre clôturé':'Trimestre rouvert');bg.remove();openReglages();render()});
+  bg.querySelector('#savetr').onclick=async()=>{for(const t of tr){const deb=bg.querySelector(`[data-deb="${t.id}"]`).value||null;const fin=bg.querySelector(`[data-fin="${t.id}"]`).value||null;
+   const {error}=await sb.from('trimestres').update({debut:deb,fin:fin}).eq('id',t.id);if(error)return toast(error.message);t.debut=deb;t.fin=fin}toast('Dates enregistrées');bg.remove();render()};
+ })}
+
+// ---------- export Excel ----------
+function renderExport(){
+ $app.innerHTML=`<header class="top"><div class="row between"><div class="h1">Export Excel</div><span class="pill sync" data-sync>${syncLabel()}</span></div></header>
+ <main><div class="card"><b>Récapitulatif de vérification</b><p class="uc-c">Un onglet par niveau (enfants × UC du T1, T2, T3, sous-totaux et total de la saison) et un onglet Général. Ce fichier sert à vérifier : les corrections se font dans l’app.</p>
+ <button class="btn" id="xl">Télécharger le fichier Excel</button></div>
+ <div class="card"><b>Avancement par niveau</b><table class="rec"><thead><tr><th>Niveau</th><th>Enfants</th><th>UC acquises</th></tr></thead><tbody>
+ ${D().niveaux.sort((a,b)=>a.ordre-b.ordre).map(n=>{const kids=D().enfants.filter(k=>k.actif&&k.niveau_id===n.id);const ucs=D().uc.filter(u=>u.niveau_id===n.id);const tot=kids.length*ucs.length;let ok=0;kids.forEach(k=>ucs.forEach(u=>{if(D().val[k.id+'|'+u.id]?.acquis)ok++}));
+  return `<tr><td>${esc(n.nom)}</td><td>${kids.length}</td><td>${tot?Math.round(ok/tot*100):0} %</td></tr>`}).join('')}</tbody></table></div></main>${nav()}`;
+ bindCommon();document.getElementById('xl').onclick=exportXlsx;
+}
+function exportXlsx(){if(!window.XLSX)return toast('Module Excel en cours de chargement, réessayez.');
+ const wb=XLSX.utils.book_new();const gen=[['Niveau','Nom','Prénom','Créneaux','T1 %','T2 %','T3 %','Saison %']];
+ for(const n of D().niveaux.sort((a,b)=>a.ordre-b.ordre)){
+  const kids=D().enfants.filter(k=>k.actif&&k.niveau_id===n.id).sort((a,b)=>(a.nom+a.prenom).localeCompare(b.nom+b.prenom,'fr'));
+  const tris=n.mode==='trimestres'?[1,2,3]:[null];const blocks=tris.map(t=>({t,ucs:ucsFor(n.id,t)}));
+  const h1=['','',''];const h2=['Nom','Prénom','Créneaux'];
+  blocks.forEach(b=>{b.ucs.forEach((u,i)=>{h1.push(i===0?(b.t?'Trimestre '+b.t:(n.mode==='oui_non'?'Savoir nager':'Fin de saison')):'');h2.push(u.code)});if(b.t){h1.push('');h2.push('Total T'+b.t)}});
+  h1.push('');h2.push('Total saison');h2.push('%');h1.push('');
+  const rows=[h1,h2];
+  for(const k of kids){const ins=(D().insByKid[k.id]||[]).map(i=>{const c=D().slotById[i.creneau_id];return c?JC[c.jour]+(i.sous_groupe?' '+i.sous_groupe:''):''}).join(' · ');
+   const r=[k.nom,k.prenom,ins];let tot=0,max=0;const pct=[];
+   blocks.forEach(b=>{let ok=0;b.ucs.forEach(u=>{const v=D().val[k.id+'|'+u.id];if(n.mode==='oui_non')r.push(v?(v.acquis?'OUI':'NON'):'');else r.push(v?.acquis?'✓':'');if(v?.acquis)ok++});tot+=ok;max+=b.ucs.length;if(b.t){r.push(ok+'/'+b.ucs.length);pct.push(b.ucs.length?Math.round(ok/b.ucs.length*100):0)}});
+   r.push(tot+'/'+max);r.push(max?Math.round(tot/max*100)/100:0);rows.push(r);
+   gen.push([n.nom,k.nom,k.prenom,ins,pct[0]??'',pct[1]??'',pct[2]??'',max?Math.round(tot/max*100):0]);}
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:22},{wch:16},{wch:16},...h2.slice(3).map(()=>({wch:8}))];ws['!freeze']={xSplit:2,ySplit:2};
+  const pc=h2.length-1;for(let i=2;i<rows.length;i++){const a=XLSX.utils.encode_cell({r:i,c:pc});if(ws[a])ws[a].z='0%'}
+  XLSX.utils.book_append_sheet(wb,ws,n.nom.slice(0,31));}
+ const wg=XLSX.utils.aoa_to_sheet(gen);wg['!cols']=[{wch:14},{wch:22},{wch:16},{wch:22},{wch:7},{wch:7},{wch:7},{wch:9}];XLSX.utils.book_append_sheet(wb,wg,'Général');
+ XLSX.writeFile(wb,'Evaluations_EDN_'+todayISO()+'.xlsx');}
+
+// ---------- démarrage ----------
+async function boot(){
+ const {data:{session}}=await sb.auth.getSession();S.user=session?.user||null;
+ if(!S.user)return render();
+ const {data:me}=await sb.from('educateurs').select('*').eq('id',S.user.id).maybeSingle();S.me=me;
+ if(!me)return render();
+ const c=LS.get('cache',null);if(c&&!S.data){c.appel=[];index(c);S.data=c;applyQueueLocally();render()}
+ try{await loadAll();applyQueueLocally();realtime();flush()}catch(e){console.warn(e);if(!S.data){$app.innerHTML='<div class="empty">Impossible de charger les données. Vérifiez la connexion.</div>';return}toast('Mode hors ligne : données en cache')}
+ render()}
+sb.auth.onAuthStateChange((ev,session)=>{if(ev==='PASSWORD_RECOVERY'){S.recovery=true;S.user=session?.user;renderLogin()}});
+if(/type=(invite|recovery)/.test(location.hash))S.recovery=true;
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&S.data&&navigator.onLine){loadAll().then(()=>{applyQueueLocally();render()}).catch(()=>{})}});
+(async()=>{if(S.recovery){await sb.auth.getSession();return renderLogin()}boot()})();
+</script>
+</body>
+</html>
