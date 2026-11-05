@@ -44,7 +44,7 @@ main{flex:1;padding:14px 16px 100px;display:flex;flex-direction:column;gap:8px}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--navy2);padding:4px;border-radius:12px;margin-top:12px}
 .seg button{height:40px;border:0;border-radius:9px;background:transparent;color:#fff;font-weight:700}
 .seg button.on{background:#fff;color:var(--navy);font-weight:800}
-.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none;position:relative}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;height:40px;padding:0 14px;border-radius:999px;font-weight:800;border:1px solid #D3DBE3;background:#fff;color:var(--ink)}
 .chip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
@@ -196,7 +196,11 @@ function render(){
  const y=window.scrollY;
  if(S.view==='planning')renderPlanning();else if(S.view==='seance')renderSeance();else if(S.view==='groupes')renderGroupes();else if(S.view==='export')renderExport();
  if(S.keepScroll){window.scrollTo(0,y);S.keepScroll=false}
+ centerChips();
 }
+// garde la puce sélectionnée visible dans les rangées défilantes (UC, sous-groupes, niveaux)
+function centerChips(){document.querySelectorAll('.chips').forEach(row=>{const on=row.querySelector('.chip.on');if(!on||row.scrollWidth<=row.clientWidth)return;
+ row.scrollLeft=Math.max(0,on.offsetLeft-(row.clientWidth-on.offsetWidth)/2)})}
 function nav(){return `<nav class="bottom"><div class="in">
  <button class="${S.view==='planning'||S.view==='seance'?'on':''}" data-go="planning">${I.cal}Planning</button>
  <button class="${S.view==='groupes'?'on':''}" data-go="groupes">${I.users}Enfants</button>
