@@ -237,14 +237,15 @@ function renderPlanning(){
   ${slots.length?slots.map(c=>{const n=(D().insBySlot[c.id]||[]).length;return `<button class="slot" data-slot="${c.id}" data-date="${selISO}">
    <div class="t"><b>${c.heure_debut.slice(0,5)}</b><span>${c.heure_fin.slice(0,5)}</span></div><div class="bar" style="background:${COLORS[c.niveau_id]}"></div>
    <div style="flex:1"><div style="font-size:16px;font-weight:800">${esc(D().niv[c.niveau_id].nom)}</div><div class="muted">${esc(c.lieu||'')} · ${n} enfants</div></div></button>`}).join(''):'<div class="empty">Aucun créneau ce jour-là.</div>'}
-  ${S.me.role==='admin'?`<button class="btn ghost" id="reglages" style="margin-top:16px">Réglages des trimestres</button>`:''}
-  <button class="btn ghost" id="lo" style="margin-top:4px">Se déconnecter (${esc(S.me.nom)})</button></main>${nav()}`;
+  ${S.me.role==='admin'?`<button class="btn ghost" id="reglages" style="margin-top:16px">Réglages des trimestres</button><button class="btn ghost" id="comptes">Comptes des éducateurs</button>`:''}
+  <button class="btn ghost" id="moncompte" style="margin-top:4px">Mon compte (${esc(S.me.nom)})</button></main>${nav()}`;
  bindCommon();
  $app.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{S.week+=+b.dataset.wk;render()});
  $app.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{S.day=+b.dataset.day;render()});
  $app.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>openSeance(+b.dataset.slot,b.dataset.date));
- document.getElementById('lo').onclick=logout;
+ document.getElementById('moncompte').onclick=openCompte;
  const rg=document.getElementById('reglages');if(rg)rg.onclick=openReglages;
+ const cp=document.getElementById('comptes');if(cp)cp.onclick=openComptes;
 }
 function openSeance(id,dateISO){S.slot=id;S.date=dateISO;S.view='seance';S.tab='appel';S.sg='all';S.tri=triDefault(dateISO);S.ucId=null;
  if(dateISO!==todayISO())S.tab='eval';window.scrollTo(0,0);render()}
@@ -354,6 +355,41 @@ function renderGroupes(){
  $app.querySelectorAll('[data-niv]').forEach(b=>b.onclick=()=>{S.groupNiv=b.dataset.niv;render()});
 }
 
+
+// ---------- mon compte ----------
+function openCompte(){sheet(`<h3>Mon compte</h3><div class="muted">${esc(S.me.nom)} · ${esc(S.user.email||'')}${S.me.role==='admin'?' · administrateur':''}</div>
+ <h4>Changer mon mot de passe</h4>
+ <form id="pwf"><div class="field"><label for="np1">Nouveau mot de passe (6 caractères minimum)</label><input id="np1" type="password" autocomplete="new-password" minlength="6" required></div>
+ <div class="field"><label for="np2">Confirmer le mot de passe</label><input id="np2" type="password" autocomplete="new-password" minlength="6" required></div>
+ <button class="btn" type="submit" style="width:100%">Enregistrer le mot de passe</button></form>
+ <button class="btn ghost" id="lo2" style="width:100%;margin-top:14px">Se déconnecter</button>`,bg=>{
+ bg.querySelector('#pwf').onsubmit=async e=>{e.preventDefault();const a=bg.querySelector('#np1').value,b=bg.querySelector('#np2').value;if(a!==b)return toast('Les deux mots de passe sont différents');
+  const {error}=await sb.auth.updateUser({password:a});if(error)return toast(error.message);toast('Mot de passe modifié');bg.remove()};
+ bg.querySelector('#lo2').onclick=()=>{bg.remove();logout()}})}
+
+// ---------- comptes éducateurs (admin) ----------
+function mdpProvisoire(){const c='abcdefghjkmnpqrstuvwxyz23456789';let s='';const r=crypto.getRandomValues(new Uint32Array(8));for(const x of r)s+=c[x%c.length];return 'Toac-'+s}
+async function openComptes(){
+ const {data:prevus,error}=await sb.from('educateurs_prevus').select('*').order('nom');if(error)return toast(error.message);
+ const actifs=new Set();const {data:eds}=await sb.from('educateurs').select('id,nom');
+ const list=prevus.map(p=>({...p,actif:(eds||[]).some(e=>e.nom===p.nom)}));
+ sheet(`<h3>Comptes des éducateurs</h3>
+ <p class="muted">Pour créer un compte ou dépanner un mot de passe perdu : choisissez un mot de passe provisoire, transmettez-le à l’éducateur, qui le changera ensuite dans « Mon compte ».</p>
+ ${list.map((p,i)=>`<div class="card" style="margin:8px 0"><div class="row between"><b>${esc(p.nom)}</b><span class="tag ${p.actif?'':'g'}">${p.actif?'Compte actif':'Pas encore de compte'}</span></div><span class="muted">${esc(p.email)}</span>
+  <div class="row"><input data-pw="${i}" value="${mdpProvisoire()}" aria-label="Mot de passe provisoire pour ${esc(p.nom)}" style="flex:1;min-width:0;height:40px;border:1px solid #C9D3DD;border-radius:10px;padding:0 10px">
+  <button class="btn sm" data-set="${i}">${p.actif?'Réinitialiser':'Créer le compte'}</button></div></div>`).join('')}
+ <h4>Ajouter un éducateur</h4>
+ <form id="addedu"><div class="field"><label for="an">Prénom et nom</label><input id="an" required></div><div class="field"><label for="ae">E-mail</label><input id="ae" type="email" required></div>
+ <button class="btn sec" type="submit" style="width:100%">Ajouter à la liste</button></form>`,bg=>{
+  bg.querySelectorAll('[data-set]').forEach(b=>b.onclick=async()=>{const p=list[+b.dataset.set];const pw=bg.querySelector(`[data-pw="${b.dataset.set}"]`).value.trim();
+   if(pw.length<6)return toast('6 caractères minimum');b.disabled=true;
+   const {data,error}=await sb.functions.invoke('gestion-comptes',{body:{email:p.email,password:pw}});b.disabled=false;
+   if(error||data?.error){let m=data?.error;try{m=m||(await error.context.json()).error}catch(_){}return toast('Erreur : '+(m||error.message))}
+   try{await navigator.clipboard.writeText(pw)}catch(_){}
+   toast((data.action==='compte_cree'?'Compte créé':'Mot de passe réinitialisé')+' — mot de passe copié');bg.remove();openComptes()});
+  bg.querySelector('#addedu').onsubmit=async e=>{e.preventDefault();const nom=bg.querySelector('#an').value.trim(),email=bg.querySelector('#ae').value.trim().toLowerCase();
+   const {error}=await sb.from('educateurs_prevus').insert({nom,email});if(error)return toast(error.message);toast('Éducateur ajouté');bg.remove();openComptes()};
+ })}
 // ---------- réglages trimestres ----------
 function openReglages(){const tr=D().trimestres;
  sheet(`<h3>Trimestres de la saison</h3><p class="muted">Sans dates, l’app utilise : T1 septembre–décembre, T2 janvier–mars, T3 avril–août.</p>
