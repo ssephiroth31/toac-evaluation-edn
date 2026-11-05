@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer></script>
 <style>
 :root{--navy:#0F2A44;--navy2:#1C4266;--blue:#0A66B2;--blue-l:#E3EEF8;--blue-d:#0A4F8A;--bg:#F3F6F9;--card:#fff;--ink:#0F1E2E;--mute:#4E5C6B;--line:#DDE4EB;--grey:#E6E9ED;--grey-d:#3D4854;--orange:#9A3412;--orange-l:#FCE9DC;--green:#1D6F42}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -375,25 +375,68 @@ function renderExport(){
   return `<tr><td>${esc(n.nom)}</td><td>${kids.length}</td><td>${tot?Math.round(ok/tot*100):0} %</td></tr>`}).join('')}</tbody></table></div></main>${nav()}`;
  bindCommon();document.getElementById('xl').onclick=exportXlsx;
 }
-function exportXlsx(){if(!window.XLSX)return toast('Module Excel en cours de chargement, réessayez.');
- const wb=XLSX.utils.book_new();const gen=[['Niveau','Nom','Prénom','Créneaux','T1 %','T2 %','T3 %','Saison %']];
- for(const n of D().niveaux.sort((a,b)=>a.ordre-b.ordre)){
+const SAISON=()=>{const d=new Date(),y=d.getFullYear();return d.getMonth()>=8?y+'-'+(y+1):(y-1)+'-'+y};
+async function exportXlsx(){if(!window.ExcelJS)return toast('Module Excel en cours de chargement, réessayez.');
+ const PAL={1:{h:'FF0A66B2',l:'FFDCEAF7',n:'Trimestre 1'},2:{h:'FF2F7D32',l:'FFE3F1E0',n:'Trimestre 2'},3:{h:'FFC2570C',l:'FFFBE6D6',n:'Trimestre 3'},fs:{h:'FF5B4FC4',l:'FFE9E6FA',n:'Fin de saison'},sn:{h:'FFC28A00',l:'FFFCF0D2',n:'Savoir nager'}};
+ const NAVY='FF0F2A44',thin={style:'thin',color:{argb:'FFB8C4D0'}},med={style:'medium',color:{argb:'FF0F2A44'}};
+ const border={top:thin,left:thin,bottom:thin,right:thin};
+ const fill=a=>({type:'pattern',pattern:'solid',fgColor:{argb:a}});
+ const scale=ref=>({ref,rules:[{type:'colorScale',priority:1,cfvo:[{type:'num',value:0},{type:'num',value:0.5},{type:'num',value:1}],color:[{argb:'FFF8696B'},{argb:'FFFFD966'},{argb:'FF63BE7B'}]}]});
+ const wb=new ExcelJS.Workbook();wb.creator='App évaluation EDN TOAC';wb.created=new Date();
+ const gen=wb.addWorksheet('Général',{views:[{state:'frozen',ySplit:3}],pageSetup:{orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0,paperSize:9}});
+ const genRows=[];
+ for(const n of D().niveaux.slice().sort((a,b)=>a.ordre-b.ordre)){
   const kids=D().enfants.filter(k=>k.actif&&k.niveau_id===n.id).sort((a,b)=>(a.nom+a.prenom).localeCompare(b.nom+b.prenom,'fr'));
-  const tris=n.mode==='trimestres'?[1,2,3]:[null];const blocks=tris.map(t=>({t,ucs:ucsFor(n.id,t)}));
-  const h1=['','',''];const h2=['Nom','Prénom','Créneaux'];
-  blocks.forEach(b=>{b.ucs.forEach((u,i)=>{h1.push(i===0?(b.t?'Trimestre '+b.t:(n.mode==='oui_non'?'Savoir nager':'Fin de saison')):'');h2.push(u.code)});if(b.t){h1.push('');h2.push('Total T'+b.t)}});
-  h1.push('');h2.push('Total saison');h2.push('%');h1.push('');
-  const rows=[h1,h2];
-  for(const k of kids){const ins=(D().insByKid[k.id]||[]).map(i=>{const c=D().slotById[i.creneau_id];return c?JC[c.jour]+(i.sous_groupe?' '+i.sous_groupe:''):''}).join(' · ');
-   const r=[k.nom,k.prenom,ins];let tot=0,max=0;const pct=[];
-   blocks.forEach(b=>{let ok=0;b.ucs.forEach(u=>{const v=D().val[k.id+'|'+u.id];if(n.mode==='oui_non')r.push(v?(v.acquis?'OUI':'NON'):'');else r.push(v?.acquis?'✓':'');if(v?.acquis)ok++});tot+=ok;max+=b.ucs.length;if(b.t){r.push(ok+'/'+b.ucs.length);pct.push(b.ucs.length?Math.round(ok/b.ucs.length*100):0)}});
-   r.push(tot+'/'+max);r.push(max?Math.round(tot/max*100)/100:0);rows.push(r);
-   gen.push([n.nom,k.nom,k.prenom,ins,pct[0]??'',pct[1]??'',pct[2]??'',max?Math.round(tot/max*100):0]);}
-  const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:22},{wch:16},{wch:16},...h2.slice(3).map(()=>({wch:8}))];ws['!freeze']={xSplit:2,ySplit:2};
-  const pc=h2.length-1;for(let i=2;i<rows.length;i++){const a=XLSX.utils.encode_cell({r:i,c:pc});if(ws[a])ws[a].z='0%'}
-  XLSX.utils.book_append_sheet(wb,ws,n.nom.slice(0,31));}
- const wg=XLSX.utils.aoa_to_sheet(gen);wg['!cols']=[{wch:14},{wch:22},{wch:16},{wch:22},{wch:7},{wch:7},{wch:7},{wch:9}];XLSX.utils.book_append_sheet(wb,wg,'Général');
- XLSX.writeFile(wb,'Evaluations_EDN_'+todayISO()+'.xlsx');}
+  const tris=n.mode==='trimestres'?[1,2,3]:[null];const blocks=tris.map(t=>({t,ucs:ucsFor(n.id,t),pal:t?PAL[t]:(n.mode==='oui_non'?PAL.sn:PAL.fs)}));
+  const ws=wb.addWorksheet(n.nom.slice(0,31),{views:[{state:'frozen',xSplit:3,ySplit:3}],pageSetup:{orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,paperSize:9}});
+  // colonnes
+  const cols=[{w:22},{w:16},{w:18}];const map=[];let c=4;
+  blocks.forEach(b=>{b.start=c;b.ucs.forEach(()=>{cols.push({w:n.mode==='oui_non'?14:7.5});c++});if(b.t){b.sub=c;cols.push({w:9});c++}});
+  const totC=c,pctC=c+1;cols.push({w:11},{w:11});
+  cols.forEach((x,i)=>ws.getColumn(i+1).width=x.w);
+  // titre
+  ws.mergeCells(1,1,1,pctC);const tt=ws.getCell(1,1);tt.value=`${n.nom} — Évaluations saison ${SAISON()} (export du ${new Date().toLocaleDateString('fr-FR')})`;
+  tt.font={bold:true,size:14,color:{argb:'FFFFFFFF'}};tt.fill=fill(NAVY);tt.alignment={vertical:'middle',indent:1};ws.getRow(1).height=26;
+  // en-têtes
+  const r2=ws.getRow(2),r3=ws.getRow(3);r2.height=22;r3.height=34;
+  [['Nom',1],['Prénom',2],['Créneaux',3]].forEach(([t,i])=>{ws.mergeCells(2,i,3,i);const x=ws.getCell(2,i);x.value=t;x.font={bold:true,color:{argb:'FFFFFFFF'}};x.fill=fill('FF3D4854');x.alignment={vertical:'middle',horizontal:'center'};x.border=border});
+  blocks.forEach(b=>{const last=b.sub||b.start+b.ucs.length-1;if(last>=b.start){if(last>b.start)ws.mergeCells(2,b.start,2,last);const h=ws.getCell(2,b.start);h.value=b.pal.n;h.font={bold:true,color:{argb:'FFFFFFFF'}};h.fill=fill(b.pal.h);h.alignment={horizontal:'center',vertical:'middle'}}
+   for(let i=b.start;i<=last;i++){ws.getCell(2,i).border={top:med,bottom:thin,left:i===b.start?med:thin,right:i===last?med:thin};ws.getCell(2,i).fill=fill(b.pal.h)}
+   b.ucs.forEach((u,i)=>{const x=ws.getCell(3,b.start+i);x.value=u.code;x.note=(u.theme||'')+(u.critere?'\nCritère : '+u.critere:'');x.font={bold:true,size:10};x.fill=fill(b.pal.l);x.alignment={horizontal:'center',vertical:'middle',wrapText:true,textRotation:0};x.border={...border,left:i===0?med:thin}});
+   if(b.sub){const x=ws.getCell(3,b.sub);x.value='Total T'+b.t;x.font={bold:true,size:10,color:{argb:'FFFFFFFF'}};x.fill=fill(b.pal.h);x.alignment={horizontal:'center',vertical:'middle',wrapText:true};x.border={...border,right:med}}});
+  ws.mergeCells(2,totC,2,pctC);const th=ws.getCell(2,totC);th.value='Saison';th.font={bold:true,color:{argb:'FFFFFFFF'}};th.fill=fill(NAVY);th.alignment={horizontal:'center',vertical:'middle'};
+  [[totC,'UC acquises'],[pctC,'% acquis']].forEach(([i,t])=>{const x=ws.getCell(3,i);x.value=t;x.font={bold:true,size:10,color:{argb:'FFFFFFFF'}};x.fill=fill(NAVY);x.alignment={horizontal:'center',vertical:'middle',wrapText:true};x.border=border});
+  // lignes
+  let r=4;const pctCols=[];
+  for(const k of kids){const ins=(D().insByKid[k.id]||[]).map(i=>{const s=D().slotById[i.creneau_id];return s?JC[s.jour]+(i.sous_groupe?' '+i.sous_groupe:''):''}).join(' · ');
+   const row=ws.getRow(r);row.height=20;row.getCell(1).value=k.nom;row.getCell(2).value=k.prenom;row.getCell(3).value=ins;row.getCell(1).font={bold:true};
+   let tot=0,max=0;const pt={};
+   blocks.forEach(b=>{let ok=0;b.ucs.forEach((u,i)=>{const v=D().val[k.id+'|'+u.id];const x=row.getCell(b.start+i);
+     if(n.mode==='oui_non'){x.value=v?(v.acquis?'OUI':'NON'):'';x.fill=fill(v?(v.acquis?'FFC6EFCE':'FFFFC7CE'):'FFFFFFFF');x.font={bold:true,color:{argb:v?(v.acquis?'FF006100':'FF9C0006'):'FF000000'}}}
+     else{x.value=v?.acquis?'✓':'';if(v?.acquis){x.fill=fill(b.pal.l);x.font={bold:true,color:{argb:b.pal.h}}}}
+     x.alignment={horizontal:'center',vertical:'middle'};x.border={...border,left:i===0?med:thin};if(v?.acquis)ok++});
+    tot+=ok;max+=b.ucs.length;
+    if(b.sub){const x=row.getCell(b.sub);x.value=b.ucs.length?ok/b.ucs.length:0;x.numFmt='0%';x.alignment={horizontal:'center',vertical:'middle'};x.font={bold:true};x.border={...border,right:med};pt[b.t]=x.value}});
+   const a=row.getCell(totC);a.value=`${tot} / ${max}`;a.alignment={horizontal:'center',vertical:'middle'};a.border=border;
+   const p=row.getCell(pctC);p.value=max?tot/max:0;p.numFmt='0%';p.font={bold:true};p.alignment={horizontal:'center',vertical:'middle'};p.border=border;
+   for(let i=1;i<=3;i++){row.getCell(i).border=border;row.getCell(i).alignment={vertical:'middle'}}
+   if(r%2===1)[1,2,3].forEach(i=>row.getCell(i).fill=fill('FFF3F6F9'));
+   genRows.push([n.nom,k.nom,k.prenom,ins,pt[1]??null,pt[2]??null,pt[3]??null,max?tot/max:0]);r++}
+  if(kids.length){blocks.forEach(b=>{if(b.sub){const L=ws.getColumn(b.sub).letter;ws.addConditionalFormatting(scale(`${L}4:${L}${r-1}`))}});const L=ws.getColumn(pctC).letter;ws.addConditionalFormatting(scale(`${L}4:${L}${r-1}`))}
+  ws.autoFilter={from:{row:3,column:1},to:{row:3,column:pctC}};
+  // légende
+  const lg=ws.getCell(r+1,1);lg.value='Légende : ✓ = UC acquise · % : rouge = peu d’acquis, orange = moitié, vert = presque tout acquis. Fichier de vérification : les corrections se font dans l’app.';lg.font={italic:true,size:9,color:{argb:'FF4E5C6B'}};ws.mergeCells(r+1,1,r+1,Math.min(pctC,12));
+ }
+ // onglet Général
+ gen.mergeCells(1,1,1,8);const gt=gen.getCell(1,1);gt.value='École de natation TOAC — synthèse saison '+SAISON();gt.font={bold:true,size:14,color:{argb:'FFFFFFFF'}};gt.fill=fill(NAVY);gt.alignment={vertical:'middle',indent:1};gen.getRow(1).height=26;
+ const gh=['Niveau','Nom','Prénom','Créneaux','T1','T2','T3','Saison'];const gc=[NAVY,NAVY,NAVY,NAVY,PAL[1].h,PAL[2].h,PAL[3].h,NAVY];
+ gen.getRow(3).height=24;gh.forEach((t,i)=>{const x=gen.getCell(3,i+1);x.value=t;x.font={bold:true,color:{argb:'FFFFFFFF'}};x.fill=fill(gc[i]);x.alignment={horizontal:'center',vertical:'middle'};x.border=border});
+ [14,22,18,20,9,9,9,10].forEach((w,i)=>gen.getColumn(i+1).width=w);
+ genRows.forEach((g,j)=>{const row=gen.getRow(4+j);g.forEach((v,i)=>{const x=row.getCell(i+1);x.value=v;x.border=border;x.alignment={vertical:'middle',horizontal:i>=4?'center':'left'};if(i>=4&&v!==null){x.numFmt='0%'}});row.getCell(8).font={bold:true};if(j%2)[1,2,3,4].forEach(i=>row.getCell(i).fill=fill('FFF3F6F9'))});
+ const gl=3+genRows.length;if(genRows.length){['E','F','G','H'].forEach(L=>gen.addConditionalFormatting(scale(`${L}4:${L}${gl}`)))}
+ gen.autoFilter={from:{row:3,column:1},to:{row:3,column:8}};
+ const buf=await wb.xlsx.writeBuffer();const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Evaluations_EDN_'+todayISO()+'.xlsx';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);}
 
 // ---------- démarrage ----------
 async function boot(){
