@@ -66,6 +66,7 @@ main{flex:1;padding:14px 16px 100px;display:flex;flex-direction:column;gap:8px}
 .uc-k{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue)}
 .uc-t{font-size:16px;font-weight:800}
 .uc-c{font-size:13px;line-height:1.45;color:var(--grey-d)}
+.uc-c .part{display:block}.uc-c .part+.part{margin-top:8px;padding-top:8px;border-top:1px dashed #C9D3DD}
 .prog{height:6px;background:var(--grey);border-radius:6px;overflow:hidden;margin-top:4px}.prog i{display:block;height:6px;background:var(--blue)}
 .btn{height:48px;border:0;border-radius:14px;background:var(--blue);color:#fff;font-weight:800;padding:0 18px}
 .btn.sec{background:var(--blue-l);color:var(--blue-d)}
@@ -121,6 +122,8 @@ const I={
  users:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 010 7M18 14.8c1.8.7 3 2.5 3.5 5.2"/></svg>',
  dl:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>'
 };
+// sépare les parties d'une UC écrites avec une ligne de tirets (ex. « dos ---- ventre »)
+const parts=t=>String(t??'').split(/\s*[-–—_]{4,}\s*/).map(x=>x.trim()).filter(Boolean);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $app=document.getElementById('app');
 const LS={get(k,d){try{const v=localStorage.getItem('edn_'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('edn_'+k,JSON.stringify(v))}catch(e){}}};
@@ -302,8 +305,8 @@ function renderSeance(){
   const triChips=niv.mode==='trimestres'?`<div class="chips">${[1,2,3].map(t=>`<button class="chip sm ${S.tri===t?'on':''}" data-tri="${t}">T${t}${triClosed(t)?' 🔒':''}</button>`).join('')}</div>`:'';
   body=`${triChips}<div class="chips">${ucs.map(x=>`<button class="chip ${x.id===S.ucId?'on':''}" data-uc="${x.id}">${esc(x.code)}</button>`).join('')}</div>
   ${u?`<section class="card"><div class="row between"><span class="uc-k">${esc(u.code)} · ${esc(u.theme||'')}</span><b>${ok} / ${present.length}</b></div>
-   ${u.generalite?`<span class="uc-t">${esc(u.generalite)}</span>`:''}<span class="uc-c"><b>Critère :</b> ${esc(u.critere||'')}</span>
-   ${u.explication?`<details><summary class="muted">Explication</summary><span class="uc-c">${esc(u.explication)}</span></details>`:''}
+   ${u.generalite?`<span class="uc-t">${esc(u.generalite)}</span>`:''}<span class="uc-c"><b>Critère :</b>${parts(u.critere).map(x=>`<span class="part">${esc(x)}</span>`).join('')}</span>
+   ${u.explication?`<details><summary class="muted">Explication</summary><span class="uc-c">${parts(u.explication).map(x=>`<span class="part">${esc(x)}</span>`).join('')}</span></details>`:''}
    ${u.source?`<span class="muted">Repris de : ${esc(u.source)}</span>`:''}
    <div class="prog"><i style="width:${present.length?Math.round(ok/present.length*100):0}%"></i></div></section>`:'<div class="empty">Aucune UC pour ce niveau.</div>'}
   ${closed?'<div class="banner">Trimestre clôturé : modification impossible. Un administrateur peut le rouvrir dans les réglages.</div>':''}
@@ -470,7 +473,7 @@ async function exportXlsx(){if(!window.ExcelJS)return toast('Module Excel en cou
   [['Nom',1],['Prénom',2],['Créneaux',3]].forEach(([t,i])=>{ws.mergeCells(2,i,3,i);const x=ws.getCell(2,i);x.value=t;x.font={bold:true,color:{argb:'FFFFFFFF'}};x.fill=fill('FF3D4854');x.alignment={vertical:'middle',horizontal:'center'};x.border=border});
   blocks.forEach(b=>{const last=b.sub||b.start+b.ucs.length-1;if(last>=b.start){if(last>b.start)ws.mergeCells(2,b.start,2,last);const h=ws.getCell(2,b.start);h.value=b.pal.n;h.font={bold:true,color:{argb:'FFFFFFFF'}};h.fill=fill(b.pal.h);h.alignment={horizontal:'center',vertical:'middle'}}
    for(let i=b.start;i<=last;i++){ws.getCell(2,i).border={top:med,bottom:thin,left:i===b.start?med:thin,right:i===last?med:thin};ws.getCell(2,i).fill=fill(b.pal.h)}
-   b.ucs.forEach((u,i)=>{const x=ws.getCell(3,b.start+i);x.value=u.code;x.note=(u.theme||'')+(u.critere?'\nCritère : '+u.critere:'');x.font={bold:true,size:10};x.fill=fill(b.pal.l);x.alignment={horizontal:'center',vertical:'middle',wrapText:true,textRotation:0};x.border={...border,left:i===0?med:thin}});
+   b.ucs.forEach((u,i)=>{const x=ws.getCell(3,b.start+i);x.value=u.code;x.note=(u.theme||'')+(u.critere?'\nCritère : '+parts(u.critere).join('\n• '):'');x.font={bold:true,size:10};x.fill=fill(b.pal.l);x.alignment={horizontal:'center',vertical:'middle',wrapText:true,textRotation:0};x.border={...border,left:i===0?med:thin}});
    if(b.sub){const x=ws.getCell(3,b.sub);x.value='Total T'+b.t;x.font={bold:true,size:10,color:{argb:'FFFFFFFF'}};x.fill=fill(b.pal.h);x.alignment={horizontal:'center',vertical:'middle',wrapText:true};x.border={...border,right:med}}});
   ws.mergeCells(2,totC,2,pctC);const th=ws.getCell(2,totC);th.value='Saison';th.font={bold:true,color:{argb:'FFFFFFFF'}};th.fill=fill(NAVY);th.alignment={horizontal:'center',vertical:'middle'};
   [[totC,'UC acquises'],[pctC,'% acquis']].forEach(([i,t])=>{const x=ws.getCell(3,i);x.value=t;x.font={bold:true,size:10,color:{argb:'FFFFFFFF'}};x.fill=fill(NAVY);x.alignment={horizontal:'center',vertical:'middle',wrapText:true};x.border=border});
