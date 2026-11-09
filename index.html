@@ -49,7 +49,7 @@ main{flex:1;padding:14px 16px 100px;display:flex;flex-direction:column;gap:8px}
 .chip{flex:none;height:40px;padding:0 14px;border-radius:999px;font-weight:800;border:1px solid #D3DBE3;background:#fff;color:var(--ink)}
 .chip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
 .chip.sm{height:34px;font-size:13px;padding:0 12px}
-.kid{width:100%;min-height:56px;border:0;border-radius:12px;padding:8px 10px 8px 12px;display:flex;align-items:center;gap:12px;background:#fff;box-shadow:0 1px 2px rgba(15,30,46,.08);text-align:left}
+.kid{width:100%;min-height:52px;border:0;border-radius:12px;padding:6px 10px 6px 12px;display:flex;align-items:center;gap:12px;background:#fff;box-shadow:0 1px 2px rgba(15,30,46,.08);text-align:left}
 .kid.abs{background:var(--grey);box-shadow:none}
 .kid .name{font-size:15px;font-weight:700}
 .kid.abs .name{color:var(--grey-d)}
@@ -59,6 +59,8 @@ main{flex:1;padding:14px 16px 100px;display:flex;flex-direction:column;gap:8px}
 .box{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:none;border:2px solid #9AA7B4;background:#fff}
 .box.on{background:var(--blue);border-color:var(--blue)}
 .box.lock{background:#C9D0D8;border-color:#C9D0D8}
+.kid.ok{background:#E7F4EA;box-shadow:none}.kid.ok .name{color:#1F4D22}.kid.ok .meta{color:#4F7A52}.kid.ok .box{background:#2F7D32;border-color:#2F7D32}
+.sec-t{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);padding:8px 4px 0}.sec-t.ok{color:#2F7D32}
 .tag{font-size:11px;font-weight:800;padding:3px 7px;border-radius:6px;background:var(--blue-l);color:var(--blue-d)}
 .tag.g{background:#EEF1F4;color:var(--grey-d)}
 .more{width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--mute);flex:none;display:flex;align-items:center;justify-content:center}
@@ -311,7 +313,11 @@ function renderSeance(){
    <div class="prog"><i style="width:${present.length?Math.round(ok/present.length*100):0}%"></i></div></section>`:'<div class="empty">Aucune UC pour ce niveau.</div>'}
   ${closed?'<div class="banner">Trimestre clôturé : modification impossible. Un administrateur peut le rouvrir dans les réglages.</div>':''}
   ${u&&!closed&&niv.mode!=='oui_non'?`<div class="row between"><span class="muted">Touchez pour valider / retirer</span><button class="btn sec sm" id="all">Tout cocher</button></div>`:''}
-  ${u?kids.map(k=>{const a=isAbs(c,k);const v=D().val[k.id+'|'+S.ucId];const on=!!v?.acquis;
+  ${u&&niv.mode!=='oui_non'?(()=>{const row=k=>{const a=isAbs(c,k);const v=D().val[k.id+'|'+S.ucId];const on=!!v?.acquis;const d=v?.updated_at?new Date(v.updated_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}):'';
+    return `<div class="row"><button class="kid ${a?'abs':''} ${on&&!a?'ok':''}" data-val="${k.id}" ${a||closed?'disabled':''}><span class="box ${on?'on':''} ${a?'lock':''}">${on?I.check:a?I.lock:''}</span><span style="flex:1"><span class="name">${esc(k.prenom)} ${esc(k.nom)}</span><br><span class="meta">${k.sg?k.sg+' · ':''}${a?'Absent — verrouillé':on?'Acquis le '+d:(v?esc(valInfo(v)):'Non acquis')}</span></span></button><button class="more" data-kid="${k.id}" aria-label="Fiche de ${esc(k.prenom)}">${I.dots}</button></div>`};
+   const todo=kids.filter(k=>!D().val[k.id+'|'+S.ucId]?.acquis),done=kids.filter(k=>D().val[k.id+'|'+S.ucId]?.acquis);
+   return `<div class="sec-t">À valider · ${todo.length}</div>${todo.map(row).join('')||'<div class="muted" style="padding:6px 4px">Tout le monde a validé cette UC.</div>'}${done.length?`<div class="sec-t ok">Acquis · ${done.length}</div>${done.map(row).join('')}`:''}`})():''}
+  ${u&&niv.mode==='oui_non'?kids.map(k=>{const a=isAbs(c,k);const v=D().val[k.id+'|'+S.ucId];const on=!!v?.acquis;
    if(niv.mode==='oui_non')return `<div class="kid ${a?'abs':''}"><span style="flex:1"><span class="name">${esc(k.prenom)} ${esc(k.nom)}</span><br><span class="meta">${a?'Absent':esc(valInfo(v))||'Non évalué'}</span></span>
     <div class="ouinon"><button class="oui ${v&&v.acquis?'on':''}" data-yn="${k.id}" data-v="1" ${a||closed?'disabled':''}>OUI</button><button class="non ${v&&!v.acquis?'on':''}" data-yn="${k.id}" data-v="0" ${a||closed?'disabled':''}>NON</button></div><button class="more" data-kid="${k.id}" aria-label="Fiche">${I.dots}</button></div>`;
    return `<div class="row"><button class="kid ${a?'abs':''}" data-val="${k.id}" ${a||closed?'disabled':''}><span class="box ${on?'on':''} ${a?'lock':''}">${on?I.check:a?I.lock:''}</span><span style="flex:1"><span class="name">${esc(k.prenom)} ${esc(k.nom)}</span><br><span class="meta">${k.sg?k.sg+' · ':''}${a?'Absent — verrouillé':esc(valInfo(v))||'Non acquis'}</span></span></button><button class="more" data-kid="${k.id}" aria-label="Fiche de ${esc(k.prenom)}">${I.dots}</button></div>`}).join(''):''}`;
