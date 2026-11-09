@@ -65,7 +65,10 @@ main{flex:1;padding:14px 16px 100px;display:flex;flex-direction:column;gap:8px}
 .ucmini .in{max-width:640px;width:100%;background:var(--blue);color:#fff;padding:calc(8px + env(safe-area-inset-top)) 14px 8px;display:flex;align-items:center;gap:10px;box-shadow:0 3px 10px rgba(15,30,46,.25);border:0;font-family:inherit;text-align:left}
 .ucmini b{font-size:15px}.ucmini span{font-size:13px;opacity:.9;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 header.top.flow{position:static}
-.fav{width:48px;height:48px;border:0;background:transparent;font-size:26px;color:#B8C2CC;flex:none;border-radius:12px}.fav.on{color:#D9A21B}
+.swipe{position:relative;border-radius:14px;overflow:hidden;touch-action:pan-y}
+.swipe .slot{position:relative;transition:transform .2s ease;will-change:transform}
+.swipe-act{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:20px;background:#E7B94A;color:#3D2A00;font-weight:800;font-size:15px;border-radius:14px}
+.swipe-act.rm{background:#C9D0D8;color:#3D4854}
 .sec-t{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);padding:8px 4px 0}.sec-t.ok{color:#2F7D32}
 .tag{font-size:11px;font-weight:800;padding:3px 7px;border-radius:6px;background:var(--blue-l);color:var(--blue-d)}
 .tag.g{background:#EEF1F4;color:var(--grey-d)}
@@ -113,7 +116,7 @@ table.rec td,table.rec th{padding:8px 6px;border-bottom:1px solid var(--line);te
 <div id="app"><div class="spin" aria-label="Chargement"></div></div>
 <script>
 'use strict';
-const APP_VERSION='1.8 · 09/11';
+const APP_VERSION='1.9 · 09/11';
 const SB_URL='https://vijexmmydvgfpkyzkgls.supabase.co';
 const SB_KEY='sb_publishable_OUT3KLLk0Dtp99jRvyh6uA_vXy9gNLH';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
@@ -264,6 +267,17 @@ function renderNoAccess(){$app.innerHTML=`<div class="login"><div class="h1">Acc
 async function logout(){await sb.auth.signOut();S.user=null;S.me=null;S.data=null;render()}
 
 function slotsOfDay(j){return D().creneaux.filter(c=>c.jour===j).sort((a,b)=>(D().fav.has(b.id)-D().fav.has(a.id))||a.heure_debut.localeCompare(b.heure_debut))}
+
+// glisser un créneau vers la gauche = favori
+function bindSwipe(w){const card=w.querySelector('.slot');const id=+w.dataset.sw;let x0=0,y0=0,dx=0,drag=false,lock=null;
+ w.addEventListener('pointerdown',e=>{x0=e.clientX;y0=e.clientY;dx=0;drag=true;lock=null;card.style.transition='none'});
+ w.addEventListener('pointermove',e=>{if(!drag)return;const mx=e.clientX-x0,my=e.clientY-y0;
+  if(lock===null&&(Math.abs(mx)>8||Math.abs(my)>8))lock=Math.abs(mx)>Math.abs(my)?'x':'y';
+  if(lock!=='x')return;dx=Math.min(0,Math.max(-140,mx));card.style.transform=`translateX(${dx}px)`});
+ const end=()=>{if(!drag)return;drag=false;card.style.transition='';card.style.transform='';
+  if(lock==='x'){card.dataset.swiped='1';setTimeout(()=>delete card.dataset.swiped,350);if(dx<-80)toggleFav(id)}};
+ w.addEventListener('pointerup',end);w.addEventListener('pointercancel',end);w.addEventListener('pointerleave',end);
+ card.addEventListener('click',e=>{if(card.dataset.swiped){e.stopImmediatePropagation();e.preventDefault()}},true)}
 async function toggleFav(id){const on=D().fav.has(id);on?D().fav.delete(id):D().fav.add(id);render();
  const r=on?await sb.from('favoris').delete().eq('creneau_id',id):await sb.from('favoris').insert({creneau_id:id});
  if(r.error){on?D().fav.add(id):D().fav.delete(id);render();toast('Favori non enregistré : '+r.error.message)}else toast(on?'Retiré de mes créneaux':'Ajouté à mes créneaux')}
@@ -277,18 +291,17 @@ function renderPlanning(){
   <div class="row between" style="margin-top:6px"><button class="iconbtn" data-wk="-1" aria-label="Semaine précédente">${I.prev}</button><b>Semaine du ${fmt(days[0])} au ${fmt(end)}</b><button class="iconbtn" data-wk="1" aria-label="Semaine suivante">${I.next}</button></div>
   <div class="days">${days.map((d,i)=>`<button class="day ${S.day===i+1?'on':''} ${isoOf(d)===todayISO()?'today':''}" data-day="${i+1}"><small>${JC[i+1]}</small><b>${d.getDate()}</b></button>`).join('')}</div></header>
   <main><div class="row between"><b style="font-size:17px">${sel.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</b><span class="muted">Trimestre ${triDefault(selISO)}</span></div>
-  ${slots.length?slots.map(c=>{const n=(D().insBySlot[c.id]||[]).length;const fav=D().fav.has(c.id);return `<div class="row"><button class="slot" data-slot="${c.id}" data-date="${selISO}" style="${fav?'border:2px solid #E7B94A':''}">
+  ${slots.length?slots.map(c=>{const n=(D().insBySlot[c.id]||[]).length;const fav=D().fav.has(c.id);return `<div class="swipe" data-sw="${c.id}"><div class="swipe-act ${fav?'rm':''}" aria-hidden="true">${fav?'☆ Retirer':'★ Favori'}</div><button class="slot" data-slot="${c.id}" data-date="${selISO}" aria-label="${esc(D().niv[c.niveau_id].nom)} ${c.heure_debut.slice(0,5)}${fav?', mon créneau':''}">
    <div class="t"><b>${c.heure_debut.slice(0,5)}</b><span>${c.heure_fin.slice(0,5)}</span></div><div class="bar" style="background:${COLORS[c.niveau_id]}"></div>
-   <div style="flex:1"><div style="font-size:16px;font-weight:800">${esc(D().niv[c.niveau_id].nom)}</div><div class="muted">${esc(c.lieu||'')} · ${n} enfants</div></div></button>
-   <button class="fav ${fav?'on':''}" data-fav="${c.id}" aria-label="${fav?'Retirer de mes créneaux':'Ajouter à mes créneaux'}" aria-pressed="${fav}">${fav?'★':'☆'}</button></div>`}).join(''):'<div class="empty">Aucun créneau ce jour-là.</div>'}
-  ${slots.length?'<p class="muted" style="text-align:center;margin:4px 0 0">★ = mes créneaux, affichés en premier</p>':''}
+   <div style="flex:1"><div style="font-size:16px;font-weight:800">${esc(D().niv[c.niveau_id].nom)}${fav?' <span style="color:#D9A21B" aria-hidden="true">★</span>':''}</div><div class="muted">${esc(c.lieu||'')} · ${n} enfant${n>1?"s":""}</div></div></button></div>`}).join(''):'<div class="empty">Aucun créneau ce jour-l\u00e0.</div>'}
+  ${slots.length?'<p class="muted" style="text-align:center;margin:4px 0 0">Glissez un créneau vers la gauche pour l’ajouter à vos favoris ★</p>':''}
   ${S.me.role==='admin'?`<button class="btn ghost" id="reglages" style="margin-top:16px">Réglages des trimestres</button><button class="btn ghost" id="comptes">Comptes des éducateurs</button>`:''}
   <button class="btn ghost" id="moncompte" style="margin-top:4px">Mon compte (${esc(S.me.nom)})</button><p class="muted" style="text-align:center;margin:6px 0 0">Version ${APP_VERSION}</p></main>${nav()}`;
  bindCommon();
  $app.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{S.week+=+b.dataset.wk;render()});
  $app.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{S.day=+b.dataset.day;render()});
  $app.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>openSeance(+b.dataset.slot,b.dataset.date));
- $app.querySelectorAll('[data-fav]').forEach(b=>b.onclick=()=>toggleFav(+b.dataset.fav));
+ $app.querySelectorAll('[data-sw]').forEach(bindSwipe);
  document.getElementById('moncompte').onclick=openCompte;
  const rg=document.getElementById('reglages');if(rg)rg.onclick=openReglages;
  const cp=document.getElementById('comptes');if(cp)cp.onclick=openComptes;
@@ -337,7 +350,7 @@ function renderSeance(){
    return `<div class="row"><button class="kid ${a?'abs':''}" data-val="${k.id}" ${a||closed?'disabled':''}><span class="box ${on?'on':''} ${a?'lock':''}">${on?I.check:a?I.lock:''}</span><span style="flex:1"><span class="name">${esc(k.prenom)} ${esc(k.nom)}</span><br><span class="meta">${k.sg?k.sg+' · ':''}${a?'Absent — verrouillé':esc(valInfo(v))||'Non acquis'}</span></span></button><button class="more" data-kid="${k.id}" aria-label="Fiche de ${esc(k.prenom)}">${I.dots}</button></div>`}).join(''):''}`;
  }
  $app.innerHTML=`<header class="top ${S.tab==='eval'?'flow':''}"><div class="row"><button class="iconbtn" id="bk" aria-label="Retour au planning">${I.back}</button>
-  <div style="flex:1"><div class="h1" style="font-size:20px">${esc(niv.nom)}</div><div class="sub">${esc(dlabel)} · ${c.heure_debut.slice(0,5)} · ${niv.mode==='trimestres'?'Trimestre '+S.tri:niv.mode==='oui_non'?'Savoir nager':'Fin de saison'}</div></div><span class="pill sync" data-sync>${syncLabel()}</span></div>
+  <div style="flex:1"><div class="h1" style="font-size:20px">${esc(niv.nom)}</div><div class="sub">${esc(dlabel)} · ${c.heure_debut.slice(0,5)} · ${niv.mode==='trimestres'?'Trimestre '+S.tri:niv.mode==='oui_non'?'Savoir nager':'Fin de saison'}</div></div><button class="iconbtn" id="favbtn" aria-label="${D().fav.has(c.id)?'Retirer de mes créneaux':'Ajouter à mes créneaux'}" aria-pressed="${D().fav.has(c.id)}" style="font-size:22px;color:${D().fav.has(c.id)?'#E7B94A':'#6F8BA6'}">${D().fav.has(c.id)?'★':'☆'}</button><span class="pill sync" data-sync>${syncLabel()}</span></div>
   <div class="seg"><button class="${S.tab==='appel'?'on':''}" data-tab="appel">1 · Appel</button><button class="${S.tab==='eval'?'on':''}" data-tab="eval">2 · Évaluation</button></div>
   ${sgs.length?`<div class="chips" style="margin-top:10px"><button class="chip sm ${S.sg==='all'?'on':''}" data-sg="all">Tous</button>${sgs.map(g=>`<button class="chip sm ${S.sg===g?'on':''}" data-sg="${g}">${g}</button>`).join('')}</div>`:''}</header>
   <main>${body}</main>${nav()}${S.tab==='eval'&&S.ucId?(()=>{const u=D().ucById[S.ucId];const pr=kids.filter(k=>!isAbs(c,k));const ok=pr.filter(k=>D().val[k.id+'|'+S.ucId]?.acquis).length;
@@ -347,6 +360,7 @@ function renderSeance(){
  if(card&&mini){if(S._io)S._io.disconnect();S._io=new IntersectionObserver(([e])=>mini.classList.toggle('show',!e.isIntersecting&&e.boundingClientRect.top<0),{threshold:0});S._io.observe(card);
   document.getElementById('ucminibtn').onclick=()=>card.scrollIntoView({behavior:'smooth',block:'start'})}
  document.getElementById('bk').onclick=()=>{S.view='planning';render()};
+ document.getElementById('favbtn').onclick=()=>toggleFav(c.id);
  $app.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render()});
  $app.querySelectorAll('[data-sg]').forEach(b=>b.onclick=()=>{S.sg=b.dataset.sg;render()});
  $app.querySelectorAll('[data-tri]').forEach(b=>b.onclick=()=>{S.tri=+b.dataset.tri;S.ucId=null;render()});

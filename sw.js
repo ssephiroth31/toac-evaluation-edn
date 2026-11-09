@@ -1,4 +1,4 @@
-const CACHE='edn-v9';
+const CACHE='edn-v10';
 const SHELL=['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png',
  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js',
  'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js'];
