@@ -116,7 +116,7 @@ table.rec td,table.rec th{padding:8px 6px;border-bottom:1px solid var(--line);te
 <div id="app"><div class="spin" aria-label="Chargement"></div></div>
 <script>
 'use strict';
-const APP_VERSION='1.9 · 09/11';
+const APP_VERSION='1.10 · 09/11';
 const SB_URL='https://vijexmmydvgfpkyzkgls.supabase.co';
 const SB_KEY='sb_publishable_OUT3KLLk0Dtp99jRvyh6uA_vXy9gNLH';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
@@ -350,7 +350,7 @@ function renderSeance(){
    return `<div class="row"><button class="kid ${a?'abs':''}" data-val="${k.id}" ${a||closed?'disabled':''}><span class="box ${on?'on':''} ${a?'lock':''}">${on?I.check:a?I.lock:''}</span><span style="flex:1"><span class="name">${esc(k.prenom)} ${esc(k.nom)}</span><br><span class="meta">${k.sg?k.sg+' · ':''}${a?'Absent — verrouillé':esc(valInfo(v))||'Non acquis'}</span></span></button><button class="more" data-kid="${k.id}" aria-label="Fiche de ${esc(k.prenom)}">${I.dots}</button></div>`}).join(''):''}`;
  }
  $app.innerHTML=`<header class="top ${S.tab==='eval'?'flow':''}"><div class="row"><button class="iconbtn" id="bk" aria-label="Retour au planning">${I.back}</button>
-  <div style="flex:1"><div class="h1" style="font-size:20px">${esc(niv.nom)}</div><div class="sub">${esc(dlabel)} · ${c.heure_debut.slice(0,5)} · ${niv.mode==='trimestres'?'Trimestre '+S.tri:niv.mode==='oui_non'?'Savoir nager':'Fin de saison'}</div></div><button class="iconbtn" id="favbtn" aria-label="${D().fav.has(c.id)?'Retirer de mes créneaux':'Ajouter à mes créneaux'}" aria-pressed="${D().fav.has(c.id)}" style="font-size:22px;color:${D().fav.has(c.id)?'#E7B94A':'#6F8BA6'}">${D().fav.has(c.id)?'★':'☆'}</button><span class="pill sync" data-sync>${syncLabel()}</span></div>
+  <div style="flex:1"><div class="h1" style="font-size:20px">${esc(niv.nom)}</div><div class="sub">${esc(dlabel)} · ${c.heure_debut.slice(0,5)} · ${niv.mode==='trimestres'?'Trimestre '+S.tri:niv.mode==='oui_non'?'Savoir nager':'Fin de saison'}</div></div><span class="pill sync" data-sync>${syncLabel()}</span></div>
   <div class="seg"><button class="${S.tab==='appel'?'on':''}" data-tab="appel">1 · Appel</button><button class="${S.tab==='eval'?'on':''}" data-tab="eval">2 · Évaluation</button></div>
   ${sgs.length?`<div class="chips" style="margin-top:10px"><button class="chip sm ${S.sg==='all'?'on':''}" data-sg="all">Tous</button>${sgs.map(g=>`<button class="chip sm ${S.sg===g?'on':''}" data-sg="${g}">${g}</button>`).join('')}</div>`:''}</header>
   <main>${body}</main>${nav()}${S.tab==='eval'&&S.ucId?(()=>{const u=D().ucById[S.ucId];const pr=kids.filter(k=>!isAbs(c,k));const ok=pr.filter(k=>D().val[k.id+'|'+S.ucId]?.acquis).length;
@@ -360,7 +360,6 @@ function renderSeance(){
  if(card&&mini){if(S._io)S._io.disconnect();S._io=new IntersectionObserver(([e])=>mini.classList.toggle('show',!e.isIntersecting&&e.boundingClientRect.top<0),{threshold:0});S._io.observe(card);
   document.getElementById('ucminibtn').onclick=()=>card.scrollIntoView({behavior:'smooth',block:'start'})}
  document.getElementById('bk').onclick=()=>{S.view='planning';render()};
- document.getElementById('favbtn').onclick=()=>toggleFav(c.id);
  $app.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render()});
  $app.querySelectorAll('[data-sg]').forEach(b=>b.onclick=()=>{S.sg=b.dataset.sg;render()});
  $app.querySelectorAll('[data-tri]').forEach(b=>b.onclick=()=>{S.tri=+b.dataset.tri;S.ucId=null;render()});
