@@ -60,6 +60,11 @@ main{flex:1;padding:14px 16px 100px;display:flex;flex-direction:column;gap:8px}
 .box.on{background:var(--blue);border-color:var(--blue)}
 .box.lock{background:#C9D0D8;border-color:#C9D0D8}
 .kid.ok{background:#E7F4EA;box-shadow:none}.kid.ok .name{color:#1F4D22}.kid.ok .meta{color:#4F7A52}.kid.ok .box{background:#2F7D32;border-color:#2F7D32}
+.ucmini{position:fixed;left:0;right:0;top:0;z-index:7;display:flex;justify-content:center;transform:translateY(-110%);transition:transform .18s ease;pointer-events:none}
+.ucmini.show{transform:none;pointer-events:auto}
+.ucmini .in{max-width:640px;width:100%;background:var(--blue);color:#fff;padding:calc(8px + env(safe-area-inset-top)) 14px 8px;display:flex;align-items:center;gap:10px;box-shadow:0 3px 10px rgba(15,30,46,.25);border:0;font-family:inherit;text-align:left}
+.ucmini b{font-size:15px}.ucmini span{font-size:13px;opacity:.9;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header.top.flow{position:static}
 .sec-t{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);padding:8px 4px 0}.sec-t.ok{color:#2F7D32}
 .tag{font-size:11px;font-weight:800;padding:3px 7px;border-radius:6px;background:var(--blue-l);color:var(--blue-d)}
 .tag.g{background:#EEF1F4;color:var(--grey-d)}
@@ -306,7 +311,7 @@ function renderSeance(){
   const present=kids.filter(k=>!isAbs(c,k));const ok=present.filter(k=>D().val[k.id+'|'+S.ucId]?.acquis).length;
   const triChips=niv.mode==='trimestres'?`<div class="chips">${[1,2,3].map(t=>`<button class="chip sm ${S.tri===t?'on':''}" data-tri="${t}">T${t}${triClosed(t)?' 🔒':''}</button>`).join('')}</div>`:'';
   body=`${triChips}<div class="chips">${ucs.map(x=>`<button class="chip ${x.id===S.ucId?'on':''}" data-uc="${x.id}">${esc(x.code)}</button>`).join('')}</div>
-  ${u?`<section class="card"><div class="row between"><span class="uc-k">${esc(u.code)} · ${esc(u.theme||'')}</span><b>${ok} / ${present.length}</b></div>
+  ${u?`<section class="card" id="uccard"><div class="row between"><span class="uc-k">${esc(u.code)} · ${esc(u.theme||'')}</span><b>${ok} / ${present.length}</b></div>
    ${u.generalite?`<span class="uc-t">${esc(u.generalite)}</span>`:''}<span class="uc-c"><b>Critère :</b>${parts(u.critere).map(x=>`<span class="part">${esc(x)}</span>`).join('')}</span>
    ${u.explication?`<details><summary class="muted">Explication</summary><span class="uc-c">${parts(u.explication).map(x=>`<span class="part">${esc(x)}</span>`).join('')}</span></details>`:''}
    ${u.source?`<span class="muted">Repris de : ${esc(u.source)}</span>`:''}
@@ -322,12 +327,16 @@ function renderSeance(){
     <div class="ouinon"><button class="oui ${v&&v.acquis?'on':''}" data-yn="${k.id}" data-v="1" ${a||closed?'disabled':''}>OUI</button><button class="non ${v&&!v.acquis?'on':''}" data-yn="${k.id}" data-v="0" ${a||closed?'disabled':''}>NON</button></div><button class="more" data-kid="${k.id}" aria-label="Fiche">${I.dots}</button></div>`;
    return `<div class="row"><button class="kid ${a?'abs':''}" data-val="${k.id}" ${a||closed?'disabled':''}><span class="box ${on?'on':''} ${a?'lock':''}">${on?I.check:a?I.lock:''}</span><span style="flex:1"><span class="name">${esc(k.prenom)} ${esc(k.nom)}</span><br><span class="meta">${k.sg?k.sg+' · ':''}${a?'Absent — verrouillé':esc(valInfo(v))||'Non acquis'}</span></span></button><button class="more" data-kid="${k.id}" aria-label="Fiche de ${esc(k.prenom)}">${I.dots}</button></div>`}).join(''):''}`;
  }
- $app.innerHTML=`<header class="top"><div class="row"><button class="iconbtn" id="bk" aria-label="Retour au planning">${I.back}</button>
+ $app.innerHTML=`<header class="top ${S.tab==='eval'?'flow':''}"><div class="row"><button class="iconbtn" id="bk" aria-label="Retour au planning">${I.back}</button>
   <div style="flex:1"><div class="h1" style="font-size:20px">${esc(niv.nom)}</div><div class="sub">${esc(dlabel)} · ${c.heure_debut.slice(0,5)} · ${niv.mode==='trimestres'?'Trimestre '+S.tri:niv.mode==='oui_non'?'Savoir nager':'Fin de saison'}</div></div><span class="pill sync" data-sync>${syncLabel()}</span></div>
   <div class="seg"><button class="${S.tab==='appel'?'on':''}" data-tab="appel">1 · Appel</button><button class="${S.tab==='eval'?'on':''}" data-tab="eval">2 · Évaluation</button></div>
   ${sgs.length?`<div class="chips" style="margin-top:10px"><button class="chip sm ${S.sg==='all'?'on':''}" data-sg="all">Tous</button>${sgs.map(g=>`<button class="chip sm ${S.sg===g?'on':''}" data-sg="${g}">${g}</button>`).join('')}</div>`:''}</header>
-  <main>${body}</main>${nav()}`;
+  <main>${body}</main>${nav()}${S.tab==='eval'&&S.ucId?(()=>{const u=D().ucById[S.ucId];const pr=kids.filter(k=>!isAbs(c,k));const ok=pr.filter(k=>D().val[k.id+'|'+S.ucId]?.acquis).length;
+   return `<div class="ucmini" id="ucmini"><button class="in" id="ucminibtn" aria-label="Revenir à la fiche de l’UC"><b>${esc(u.code)}</b><span>${esc(u.theme||'')}${u.generalite?' · '+esc(u.generalite):''}</span><b>${ok} / ${pr.length}</b><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button></div>`})():''}`;
  bindCommon();
+ const card=document.getElementById('uccard'),mini=document.getElementById('ucmini');
+ if(card&&mini){if(S._io)S._io.disconnect();S._io=new IntersectionObserver(([e])=>mini.classList.toggle('show',!e.isIntersecting&&e.boundingClientRect.top<0),{threshold:0});S._io.observe(card);
+  document.getElementById('ucminibtn').onclick=()=>card.scrollIntoView({behavior:'smooth',block:'start'})}
  document.getElementById('bk').onclick=()=>{S.view='planning';render()};
  $app.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render()});
  $app.querySelectorAll('[data-sg]').forEach(b=>b.onclick=()=>{S.sg=b.dataset.sg;render()});
