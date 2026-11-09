@@ -65,6 +65,7 @@ main{flex:1;padding:14px 16px 100px;display:flex;flex-direction:column;gap:8px}
 .ucmini .in{max-width:640px;width:100%;background:var(--blue);color:#fff;padding:calc(8px + env(safe-area-inset-top)) 14px 8px;display:flex;align-items:center;gap:10px;box-shadow:0 3px 10px rgba(15,30,46,.25);border:0;font-family:inherit;text-align:left}
 .ucmini b{font-size:15px}.ucmini span{font-size:13px;opacity:.9;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 header.top.flow{position:static}
+.fav{width:48px;height:48px;border:0;background:transparent;font-size:26px;color:#B8C2CC;flex:none;border-radius:12px}.fav.on{color:#D9A21B}
 .sec-t{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);padding:8px 4px 0}.sec-t.ok{color:#2F7D32}
 .tag{font-size:11px;font-weight:800;padding:3px 7px;border-radius:6px;background:var(--blue-l);color:var(--blue-d)}
 .tag.g{background:#EEF1F4;color:var(--grey-d)}
@@ -112,6 +113,7 @@ table.rec td,table.rec th{padding:8px 6px;border-bottom:1px solid var(--line);te
 <div id="app"><div class="spin" aria-label="Chargement"></div></div>
 <script>
 'use strict';
+const APP_VERSION='1.8 · 09/11';
 const SB_URL='https://vijexmmydvgfpkyzkgls.supabase.co';
 const SB_KEY='sb_publishable_OUT3KLLk0Dtp99jRvyh6uA_vXy9gNLH';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
@@ -150,14 +152,14 @@ function toast(msg){const t=document.createElement('div');t.className='toast';t.
 async function fetchAll(table,select='*',filter){let out=[],from=0;const step=1000;
  for(;;){let q=sb.from(table).select(select).range(from,from+step-1);if(filter)q=filter(q);const {data,error}=await q;if(error)throw error;out=out.concat(data);if(data.length<step)break;from+=step}return out}
 async function loadAll(){
- const [niveaux,uc,creneaux,enfants,inscriptions,educateurs,trimestres,validations,appel]=await Promise.all([
+ const [niveaux,uc,creneaux,enfants,inscriptions,educateurs,trimestres,validations,appel,favoris]=await Promise.all([
   fetchAll('niveaux'),fetchAll('uc','*',q=>q.eq('actif',true).order('niveau_id').order('trimestre',{nullsFirst:true}).order('ordre')),
   fetchAll('creneaux','*',q=>q.eq('actif',true).order('jour').order('heure_debut')),
   fetchAll('enfants','*',q=>q.order('nom').order('prenom')),fetchAll('inscriptions'),fetchAll('educateurs'),
   fetchAll('trimestres','*,saisons!inner(active)',q=>q.eq('saisons.active',true).order('numero')),
-  fetchAll('validations'),fetchAll('appel_du_jour','*',q=>q.eq('date',todayISO()))]);
- const d={niveaux,uc,creneaux,enfants,inscriptions,educateurs,trimestres,validations,appel};
- index(d);S.data=d;LS.set('cache',{niveaux,uc,creneaux,enfants,inscriptions,educateurs,trimestres,validations,at:Date.now()});
+  fetchAll('validations'),fetchAll('appel_du_jour','*',q=>q.eq('date',todayISO())),fetchAll('favoris')]);
+ const d={niveaux,uc,creneaux,enfants,inscriptions,educateurs,trimestres,validations,appel,favoris};
+ index(d);S.data=d;LS.set('cache',{niveaux,uc,creneaux,enfants,inscriptions,educateurs,trimestres,validations,favoris,at:Date.now()});
 }
 function index(d){
  d.niv=Object.fromEntries(d.niveaux.map(n=>[n.id,n]));
@@ -168,6 +170,7 @@ function index(d){
  d.abs=new Set((d.appel||[]).filter(a=>a.absent&&a.date===todayISO()).map(a=>a.creneau_id+'|'+a.enfant_id));
  d.insBySlot={};d.insByKid={};for(const i of d.inscriptions){(d.insBySlot[i.creneau_id]??=[]).push(i);(d.insByKid[i.enfant_id]??=[]).push(i)}
  d.slotById=Object.fromEntries(d.creneaux.map(c=>[c.id,c]));
+ d.fav=new Set((d.favoris||[]).map(f=>f.creneau_id));
 }
 function applyQueueLocally(){for(const op of S.queue)applyLocal(op)}
 function applyLocal(op){const d=D();if(!d)return;
@@ -260,7 +263,10 @@ function renderInscription(msg){
 function renderNoAccess(){$app.innerHTML=`<div class="login"><div class="h1">Accès non activé</div><p class="muted">Votre compte n’est pas encore enregistré comme éducateur. Contactez le responsable de l’école de natation.</p><button class="btn ghost" id="lo">Se déconnecter</button></div>`;document.getElementById('lo').onclick=logout}
 async function logout(){await sb.auth.signOut();S.user=null;S.me=null;S.data=null;render()}
 
-function slotsOfDay(j){return D().creneaux.filter(c=>c.jour===j)}
+function slotsOfDay(j){return D().creneaux.filter(c=>c.jour===j).sort((a,b)=>(D().fav.has(b.id)-D().fav.has(a.id))||a.heure_debut.localeCompare(b.heure_debut))}
+async function toggleFav(id){const on=D().fav.has(id);on?D().fav.delete(id):D().fav.add(id);render();
+ const r=on?await sb.from('favoris').delete().eq('creneau_id',id):await sb.from('favoris').insert({creneau_id:id});
+ if(r.error){on?D().fav.add(id):D().fav.delete(id);render();toast('Favori non enregistré : '+r.error.message)}else toast(on?'Retiré de mes créneaux':'Ajouté à mes créneaux')}
 function renderPlanning(){
  const mon=monday(S.week);const days=[];for(let i=0;i<6;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);days.push(d)}
  if(!S.day){const wd=(new Date().getDay()+6)%7+1;S.day=wd>6?6:wd}
@@ -271,15 +277,18 @@ function renderPlanning(){
   <div class="row between" style="margin-top:6px"><button class="iconbtn" data-wk="-1" aria-label="Semaine précédente">${I.prev}</button><b>Semaine du ${fmt(days[0])} au ${fmt(end)}</b><button class="iconbtn" data-wk="1" aria-label="Semaine suivante">${I.next}</button></div>
   <div class="days">${days.map((d,i)=>`<button class="day ${S.day===i+1?'on':''} ${isoOf(d)===todayISO()?'today':''}" data-day="${i+1}"><small>${JC[i+1]}</small><b>${d.getDate()}</b></button>`).join('')}</div></header>
   <main><div class="row between"><b style="font-size:17px">${sel.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</b><span class="muted">Trimestre ${triDefault(selISO)}</span></div>
-  ${slots.length?slots.map(c=>{const n=(D().insBySlot[c.id]||[]).length;return `<button class="slot" data-slot="${c.id}" data-date="${selISO}">
+  ${slots.length?slots.map(c=>{const n=(D().insBySlot[c.id]||[]).length;const fav=D().fav.has(c.id);return `<div class="row"><button class="slot" data-slot="${c.id}" data-date="${selISO}" style="${fav?'border:2px solid #E7B94A':''}">
    <div class="t"><b>${c.heure_debut.slice(0,5)}</b><span>${c.heure_fin.slice(0,5)}</span></div><div class="bar" style="background:${COLORS[c.niveau_id]}"></div>
-   <div style="flex:1"><div style="font-size:16px;font-weight:800">${esc(D().niv[c.niveau_id].nom)}</div><div class="muted">${esc(c.lieu||'')} · ${n} enfants</div></div></button>`}).join(''):'<div class="empty">Aucun créneau ce jour-là.</div>'}
+   <div style="flex:1"><div style="font-size:16px;font-weight:800">${esc(D().niv[c.niveau_id].nom)}</div><div class="muted">${esc(c.lieu||'')} · ${n} enfants</div></div></button>
+   <button class="fav ${fav?'on':''}" data-fav="${c.id}" aria-label="${fav?'Retirer de mes créneaux':'Ajouter à mes créneaux'}" aria-pressed="${fav}">${fav?'★':'☆'}</button></div>`}).join(''):'<div class="empty">Aucun créneau ce jour-là.</div>'}
+  ${slots.length?'<p class="muted" style="text-align:center;margin:4px 0 0">★ = mes créneaux, affichés en premier</p>':''}
   ${S.me.role==='admin'?`<button class="btn ghost" id="reglages" style="margin-top:16px">Réglages des trimestres</button><button class="btn ghost" id="comptes">Comptes des éducateurs</button>`:''}
-  <button class="btn ghost" id="moncompte" style="margin-top:4px">Mon compte (${esc(S.me.nom)})</button></main>${nav()}`;
+  <button class="btn ghost" id="moncompte" style="margin-top:4px">Mon compte (${esc(S.me.nom)})</button><p class="muted" style="text-align:center;margin:6px 0 0">Version ${APP_VERSION}</p></main>${nav()}`;
  bindCommon();
  $app.querySelectorAll('[data-wk]').forEach(b=>b.onclick=()=>{S.week+=+b.dataset.wk;render()});
  $app.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{S.day=+b.dataset.day;render()});
  $app.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>openSeance(+b.dataset.slot,b.dataset.date));
+ $app.querySelectorAll('[data-fav]').forEach(b=>b.onclick=()=>toggleFav(+b.dataset.fav));
  document.getElementById('moncompte').onclick=openCompte;
  const rg=document.getElementById('reglages');if(rg)rg.onclick=openReglages;
  const cp=document.getElementById('comptes');if(cp)cp.onclick=openComptes;
@@ -535,7 +544,8 @@ async function boot(){
  render()}
 sb.auth.onAuthStateChange((ev,session)=>{if(ev==='PASSWORD_RECOVERY'){S.recovery=true;S.user=session?.user;renderLogin()}});
 if(/type=(invite|recovery)/.test(location.hash))S.recovery=true;
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>{r.update();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')r.update()})}).catch(()=>{});
+ const hadCtrl=!!navigator.serviceWorker.controller;let reloaded=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded||!hadCtrl)return;reloaded=true;location.reload()})}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&S.data&&navigator.onLine){loadAll().then(()=>{applyQueueLocally();render()}).catch(()=>{})}});
 (async()=>{if(S.recovery){await sb.auth.getSession();return renderLogin()}boot()})();
 </script>
