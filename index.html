@@ -69,6 +69,13 @@ header.top.flow{position:static}
 .swipe .slot{position:relative;transition:transform .2s ease;will-change:transform}
 .swipe-act{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:20px;background:#E7B94A;color:#3D2A00;font-weight:800;font-size:15px;border-radius:14px}
 .swipe-act.rm{background:#C9D0D8;color:#3D4854}
+.linkbtn{border:0;background:transparent;color:var(--blue-d);font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:6px;padding:6px 2px;min-height:36px}
+#print{display:none}
+@media print{body{background:#fff}#app,nav.bottom,.toast,.sheet-bg,.ucmini{display:none!important}#print{display:block;font-family:Arial,sans-serif;color:#000}
+ #print h1{font-size:18pt;margin:0 0 2mm}#print .meta{font-size:10pt;margin:0 0 4mm;color:#333}
+ #print table{width:100%;border-collapse:collapse;font-size:10pt}#print th,#print td{border:1px solid #000;padding:1.6mm 1.5mm;text-align:left}
+ #print th{background:#E6E9ED}#print td.d,#print th.d{width:9mm;text-align:center}#print tr{page-break-inside:avoid}
+ @page{size:A4 landscape;margin:10mm}}
 .sec-t{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);padding:8px 4px 0}.sec-t.ok{color:#2F7D32}
 .tag{font-size:11px;font-weight:800;padding:3px 7px;border-radius:6px;background:var(--blue-l);color:var(--blue-d)}
 .tag.g{background:#EEF1F4;color:var(--grey-d)}
@@ -114,9 +121,10 @@ table.rec td,table.rec th{padding:8px 6px;border-bottom:1px solid var(--line);te
 </head>
 <body>
 <div id="app"><div class="spin" aria-label="Chargement"></div></div>
+<div id="print" aria-hidden="true"></div>
 <script>
 'use strict';
-const APP_VERSION='1.10 · 09/11';
+const APP_VERSION='1.11 · 21/11';
 const SB_URL='https://vijexmmydvgfpkyzkgls.supabase.co';
 const SB_KEY='sb_publishable_OUT3KLLk0Dtp99jRvyh6uA_vXy9gNLH';
 const sb=supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
@@ -323,7 +331,7 @@ function renderSeance(){
  const dlabel=new Date(S.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
  let body='';
  if(S.tab==='appel'){
-  body=`<div class="row between"><div class="row"><span class="pill" style="background:var(--blue-l);color:var(--blue-d)">${kids.length-absN} présents</span><span class="pill" style="background:var(--grey);color:var(--grey-d)">${absN} absents</span></div><span class="muted">Partagé en direct</span></div>
+  body=`<div class="row between"><div class="row"><span class="pill" style="background:var(--blue-l);color:var(--blue-d)">${kids.length-absN} présents</span><span class="pill" style="background:var(--grey);color:var(--grey-d)">${absN} absents</span></div><button class="linkbtn" id="printbtn" aria-label="Imprimer la liste d’appel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>Imprimer</button></div>
   ${isToday?'<p class="muted" style="margin:2px 0 4px">Tout le monde est présent par défaut. Touchez un enfant pour le marquer absent.</p>':'<div class="banner">L’appel ne se fait que le jour même. Vous pouvez évaluer sans appel.</div>'}
   ${kids.map(k=>{const a=isAbs(c,k);return `<div class="row"><button class="kid ${a?'abs':''}" data-abs="${k.id}" ${isToday?'':'disabled'}><span class="av">${esc(k.prenom[0]+k.nom[0])}</span><span style="flex:1"><span class="name" style="${a?'text-decoration:line-through':''}">${esc(k.prenom)} ${esc(k.nom)}</span><br><span class="meta">${k.sg?k.sg+' · ':''}${a?'Absent — évaluation verrouillée':'Présent'}</span></span><span class="tag ${a?'g':''}">${a?'Absent':'Présent'}</span></button><button class="more" data-kid="${k.id}" aria-label="Fiche de ${esc(k.prenom)}">${I.dots}</button></div>`}).join('')}
   <button class="btn" data-tab="eval" style="margin-top:8px">Passer à l’évaluation →</button>`;
@@ -360,6 +368,7 @@ function renderSeance(){
  if(card&&mini){if(S._io)S._io.disconnect();S._io=new IntersectionObserver(([e])=>mini.classList.toggle('show',!e.isIntersecting&&e.boundingClientRect.top<0),{threshold:0});S._io.observe(card);
   document.getElementById('ucminibtn').onclick=()=>card.scrollIntoView({behavior:'smooth',block:'start'})}
  document.getElementById('bk').onclick=()=>{S.view='planning';render()};
+ const pb=document.getElementById('printbtn');if(pb)pb.onclick=()=>printAppel(c,kids);
  $app.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render()});
  $app.querySelectorAll('[data-sg]').forEach(b=>b.onclick=()=>{S.sg=b.dataset.sg;render()});
  $app.querySelectorAll('[data-tri]').forEach(b=>b.onclick=()=>{S.tri=+b.dataset.tri;S.ucId=null;render()});
@@ -407,11 +416,44 @@ function openKid(id){const k=D().kid[id];const n=D().niv[k.niveau_id];const ins=
   bg.querySelector('#act').onclick=async()=>{const {error}=await sb.from('enfants').update({actif:!k.actif}).eq('id',id);if(error)return toast(error.message);k.actif=!k.actif;toast(k.actif?'Réintégré':'Retiré');bg.remove();render()};
  })}
 
+
+// ---------- impression de la liste d'appel ----------
+function printAppel(c,kids){const niv=D().niv[c.niveau_id];const cols=10;
+ const sg=S.sg!=='all'?' · '+S.sg:'';
+ document.getElementById('print').innerHTML=`<h1>Liste d’appel — ${esc(niv.nom)}${esc(sg)}</h1>
+  <p class="meta">${JOURS[c.jour]} ${c.heure_debut.slice(0,5)}–${c.heure_fin.slice(0,5)} · ${esc(c.lieu||'')} · ${kids.length} enfant${kids.length>1?'s':''} · imprimé le ${new Date().toLocaleDateString('fr-FR')}</p>
+  <table><thead><tr><th style="width:8mm">N°</th><th>Nom</th><th>Prénom</th>${kids.some(k=>k.sg)?'<th style="width:14mm">Groupe</th>':''}${Array.from({length:cols},()=>'<th class="d">__/__</th>').join('')}</tr></thead>
+  <tbody>${kids.map((k,i)=>`<tr><td>${i+1}</td><td><b>${esc(k.nom)}</b></td><td>${esc(k.prenom)}</td>${kids.some(x=>x.sg)?`<td>${esc(k.sg||'')}</td>`:''}${'<td class="d"></td>'.repeat(cols)}</tr>`).join('')}</tbody></table>`;
+ setTimeout(()=>window.print(),50)}
+
+// ---------- ajout d'un enfant ----------
+function openAddKid(){const nivs=D().niveaux.slice().sort((a,b)=>a.ordre-b.ordre);
+ const slotsHtml=nv=>{const cs=D().creneaux.filter(c=>c.niveau_id===nv);return cs.length?cs.map(c=>`<label class="row" style="padding:8px 0;border-bottom:1px solid var(--line);gap:10px"><input type="checkbox" value="${c.id}" style="width:22px;height:22px"><span style="flex:1">${JOURS[c.jour]} ${c.heure_debut.slice(0,5)} · ${esc(c.lieu||'')}</span>${nv==='grenouilles'?`<select data-sg="${c.id}" aria-label="Sous-groupe" style="height:36px;border-radius:8px;border:1px solid #C9D3DD">${['G1','G2','G3','G4'].map(g=>`<option>${g}</option>`).join('')}</select>`:''}</label>`).join(''):'<div class="muted">Aucun créneau pour ce niveau.</div>'};
+ sheet(`<h3>Ajouter un enfant</h3>
+ <form id="addk"><div class="field"><label for="kn">Nom</label><input id="kn" required autocapitalize="characters"></div>
+ <div class="field"><label for="kp">Prénom</label><input id="kp" required autocapitalize="words"></div>
+ <div class="field"><label for="kv">Niveau</label><select id="kv">${nivs.map(n=>`<option value="${n.id}" ${n.id===S.groupNiv?'selected':''}>${esc(n.nom)}</option>`).join('')}</select></div>
+ <h4>Créneaux</h4><div id="kslots">${slotsHtml(S.groupNiv)}</div>
+ <button class="btn" type="submit" style="width:100%;margin-top:14px">Enregistrer l’enfant</button></form>`,bg=>{
+  const sel=bg.querySelector('#kv');sel.onchange=()=>{bg.querySelector('#kslots').innerHTML=slotsHtml(sel.value)};
+  bg.querySelector('#addk').onsubmit=async e=>{e.preventDefault();
+   const nom=bg.querySelector('#kn').value.trim().toUpperCase(),prenom=bg.querySelector('#kp').value.trim(),nv=sel.value;
+   const ch=[...bg.querySelectorAll('#kslots input:checked')].map(i=>+i.value);
+   if(!ch.length&&!confirmBox('Aucun créneau coché : l’enfant n’apparaîtra dans aucune liste d’appel. Continuer ?'))return;
+   if(D().enfants.some(k=>k.actif&&k.nom.toUpperCase()===nom&&k.prenom.toLowerCase()===prenom.toLowerCase())&&!confirmBox(`${prenom} ${nom} existe déjà. L’ajouter quand même ?`))return;
+   const btn=bg.querySelector('button[type=submit]');btn.disabled=true;
+   const {data:kid,error}=await sb.from('enfants').insert({nom,prenom,niveau_id:nv}).select().single();
+   if(error){btn.disabled=false;return toast(error.message)}
+   const rows=ch.map(cid=>({enfant_id:kid.id,creneau_id:cid,sous_groupe:nv==='grenouilles'?bg.querySelector(`[data-sg="${cid}"]`).value:null}));
+   if(rows.length){const r=await sb.from('inscriptions').insert(rows);if(r.error)toast('Enfant créé, mais créneaux non enregistrés : '+r.error.message);else D().inscriptions.push(...rows)}
+   D().enfants.push(kid);D().enfants.sort((a,b)=>(a.nom+a.prenom).localeCompare(b.nom+b.prenom,'fr'));index(D());
+   S.groupNiv=nv;S.search='';toast(`${prenom} ${nom} ajouté`);bg.remove();render()};
+ })}
 // ---------- liste enfants ----------
 function renderGroupes(){
  const q=S.search.toLowerCase();const niv=S.groupNiv;
  let kids=D().enfants.filter(k=>(q?((k.prenom+' '+k.nom).toLowerCase().includes(q)):k.niveau_id===niv));
- $app.innerHTML=`<header class="top"><div class="row between"><div class="h1">Enfants</div><span class="pill sync" data-sync>${syncLabel()}</span></div>
+ $app.innerHTML=`<header class="top"><div class="row between"><div class="h1">Enfants</div><div class="row"><button class="btn sm" id="addkid" style="background:#fff;color:var(--navy)">+ Ajouter</button><span class="pill sync" data-sync>${syncLabel()}</span></div></div>
   <div class="field" style="margin:10px 0 0"><input id="q" type="search" placeholder="Rechercher un enfant" value="${esc(S.search)}" aria-label="Rechercher un enfant" style="height:44px;border:0;border-radius:12px;padding:0 12px"></div>
   ${q?'':`<div class="chips" style="margin-top:10px">${D().niveaux.sort((a,b)=>a.ordre-b.ordre).map(n=>`<button class="chip sm ${n.id===niv?'on':''}" data-niv="${n.id}">${esc(n.nom)}</button>`).join('')}</div>`}</header>
   <main>${kids.length?kids.map(k=>{const N=D().niv[k.niveau_id];const t=N.mode==='trimestres'?triDefault():null;const ucs=ucsFor(k.niveau_id,t);const ok=ucs.filter(u=>D().val[k.id+'|'+u.id]?.acquis).length;
@@ -420,6 +462,7 @@ function renderGroupes(){
  bindCommon();
  const inp=document.getElementById('q');inp.oninput=()=>{S.search=inp.value;clearTimeout(S._t);S._t=setTimeout(()=>{render();const i=document.getElementById('q');i.focus();i.setSelectionRange(i.value.length,i.value.length)},250)};
  $app.querySelectorAll('[data-niv]').forEach(b=>b.onclick=()=>{S.groupNiv=b.dataset.niv;render()});
+ document.getElementById('addkid').onclick=openAddKid;
 }
 
 
